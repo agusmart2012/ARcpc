@@ -47,8 +47,15 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     const page = await request(server, { path: "/" });
     assert.equal(page.status, 200);
     const html = page.raw.toString("utf8");
-    assert.match(html, /Tanda/);
+    assert.match(html, /Carrasco Polo Club/);
+    assert.match(html, /data-cat="m15"/);
+    assert.match(html, /PRE-INTER/);
     assert.match(html, /viewport-fit=cover/);
+
+    const routine = await request(server, { path: "/routines/m15.json" });
+    assert.equal(routine.status, 200);
+    assert.equal(routine.json.days.length, 5);
+    assert.equal(routine.json.category, "m15");
 
     const imported = await request(server, {
       method: "POST",

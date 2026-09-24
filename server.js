@@ -322,14 +322,14 @@ function listen(port = Number(process.env.PORT) || 4173) {
   const server = createServer();
   server.on("error", (error) => {
     if (error.code === "EADDRINUSE") {
-      console.error("El puerto " + port + " está ocupado. Cerrá el otro Tanda o cambiá PORT en .env.");
+      console.error("El puerto " + port + " está ocupado. Cerrá la otra ventana de la app o cambiá PORT en .env.");
       process.exit(1);
     }
     throw error;
   });
   server.listen(port, "0.0.0.0", () => {
     console.log("");
-    console.log("  Tanda");
+    console.log("  Sala de Alto Rendimiento · Carrasco Polo Club");
     console.log("  En esta compu:  http://localhost:" + port);
     for (const url of lanUrls(port)) console.log("  En el iPhone:   " + url);
     console.log("  Coach:          " + (process.env.XAI_API_KEY ? "listo (Grok)" : "falta XAI_API_KEY en .env"));

@@ -1,4 +1,4 @@
-const CACHE = "tanda-v1";
+const CACHE = "cpc-ar-v2";
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);

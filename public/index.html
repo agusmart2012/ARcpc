@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="theme-color" content="#10110e">
+  <meta name="theme-color" content="#0c1016">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Tanda">
-  <meta name="description" content="Rutina de gym: subí un Excel o un PDF, marcá las series de hoy y mirá la técnica.">
-  <title>Tanda</title>
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <meta name="apple-mobile-web-app-title" content="Sala de Alto Rendimiento">
+  <meta name="description" content="Rutina de rugby de la sala de alto rendimiento del Carrasco Polo Club.">
+  <title>Sala de Alto Rendimiento · Carrasco Polo Club</title>
+  <link rel="icon" href="/crest.png" type="image/png">
   <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
@@ -23,19 +23,24 @@
         <div class="app" id="app">
           <header class="top">
             <div class="brand">
-              <svg class="mark" viewBox="0 0 32 16" aria-hidden="true">
-                <rect x="1" y="3" width="5" height="10" rx="1.2"></rect>
-                <rect x="26" y="3" width="5" height="10" rx="1.2"></rect>
-                <rect x="6" y="6.2" width="20" height="3.6" rx="1"></rect>
-              </svg>
-              Tanda
+              <img class="crest" src="/crest.png" alt="Escudo del Carrasco Polo Club" width="34" height="38">
+              <span class="brand-name">Sala de<br>Alto Rendimiento</span>
             </div>
-            <button type="button" class="icon-btn" id="import-btn" aria-label="Subir Excel o PDF">
+            <button type="button" class="icon-btn" id="import-btn" aria-label="Subir planilla de esta categoría">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14M5 12h14"></path>
               </svg>
             </button>
           </header>
+          <nav class="cats" id="cats" aria-label="Categorías">
+            <button type="button" class="cat" data-cat="m13">M13</button>
+            <button type="button" class="cat" data-cat="m15" aria-selected="true">M15</button>
+            <button type="button" class="cat" data-cat="m17">M17</button>
+            <button type="button" class="cat" data-cat="m19">M19</button>
+            <button type="button" class="cat" data-cat="pre-inter">PRE-INTER</button>
+            <button type="button" class="cat" data-cat="inter">INTER</button>
+            <button type="button" class="cat" data-cat="primera">PRIMERA</button>
+          </nav>
           <main id="main"></main>
           <form id="composer" hidden>
             <div id="chips"></div>

@@ -1,4 +1,20 @@
-const KEYS = { plan: "tanda.plan", log: "tanda.log", cycle: "tanda.cycle", chat: "tanda.chat" };
+const KEYS = {
+  category: "cpc.category",
+  overrides: "cpc.overrides",
+  log: "cpc.log",
+  cycle: "cpc.cycle",
+  chat: "cpc.chat",
+};
+const CATEGORIES = [
+  { id: "m13", label: "M13" },
+  { id: "m15", label: "M15" },
+  { id: "m17", label: "M17" },
+  { id: "m19", label: "M19" },
+  { id: "pre-inter", label: "PRE-INTER" },
+  { id: "inter", label: "INTER" },
+  { id: "primera", label: "PRIMERA" },
+];
+const BUILTIN_FILES = { m15: "/routines/m15.json" };
 const WEEK = [
   [1, "Lunes"],
   [2, "Martes"],
@@ -9,10 +25,10 @@ const WEEK = [
   [0, "Domingo"],
 ];
 const SUGGESTIONS = [
-  "¿Cómo caliento para esto?",
-  "Revisá la técnica del primero",
-  "¿Qué hago si está ocupada la máquina?",
-  "¿El peso que anoté está bien?",
+  "¿Cómo caliento esta sesión?",
+  "Explicame la parte central de hoy",
+  "¿Qué hago si no llego al porcentaje?",
+  "¿El peso que anoté está bien para el RIR?",
 ];
 
 const fileInput = document.getElementById("file");
@@ -28,26 +44,36 @@ const sheetBody = document.getElementById("sheet-body");
 const app = document.getElementById("app");
 const phone = document.getElementById("phone");
 
-const storedPlan = load(KEYS.plan);
+const storedCategory = load(KEYS.category);
+const storedOverrides = load(KEYS.overrides);
 const storedLog = load(KEYS.log);
 const storedChat = load(KEYS.chat);
 
 const state = {
   tab: "hoy",
-  plan: validPlan(storedPlan) ? storedPlan : null,
-  log: storedLog && typeof storedLog === "object" ? storedLog : {},
-  cycle: load(KEYS.cycle),
-  chat: Array.isArray(storedChat) ? storedChat : [],
+  category: CATEGORIES.some((item) => item.id === storedCategory) ? storedCategory : "m15",
+  overrides: objectBag(storedOverrides),
+  builtins: {},
+  plan: null,
+  log: objectBag(storedLog),
+  cycle: objectBag(load(KEYS.cycle)),
+  chat: objectBag(storedChat),
   focusKey: null,
   ai: false,
   importing: false,
   coachBusy: false,
+  ready: false,
+  loadError: "",
 };
 
 let importLock = false;
 let dismissSheet = null;
 let videoToken = 0;
 let toastTimer = 0;
+
+function objectBag(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
 
 function load(key) {
   try {
@@ -68,6 +94,29 @@ function save(key, value) {
 
 function validPlan(plan) {
   return Boolean(plan && plan.version === 1 && Array.isArray(plan.days));
+}
+
+function categoryLabel() {
+  const found = CATEGORIES.find((item) => item.id === state.category);
+  return found ? found.label : "Categoría";
+}
+
+function planFor(id) {
+  const override = state.overrides[id];
+  if (validPlan(override)) return override;
+  const builtin = state.builtins[id];
+  if (validPlan(builtin)) return builtin;
+  return null;
+}
+
+function messages() {
+  if (!Array.isArray(state.chat[state.category])) state.chat[state.category] = [];
+  return state.chat[state.category];
+}
+
+function currentCycle() {
+  const cycle = state.cycle[state.category];
+  return cycle && cycle.anchor ? cycle : null;
 }
 
 function todayKey(date = new Date()) {
@@ -114,7 +163,7 @@ function el(tag, attrs, children) {
 }
 
 function humanError(error, fallback) {
-  if (error && error.message === "Failed to fetch") return "No llegué a la compu donde corre Tanda.";
+  if (error && error.message === "Failed to fetch") return "No llegué a la compu donde corre la app.";
   return (error && error.message) || fallback;
 }
 
@@ -129,9 +178,11 @@ function toast(text) {
 }
 
 function logBag() {
+  if (!state.log[state.category] || typeof state.log[state.category] !== "object") state.log[state.category] = {};
+  const bag = state.log[state.category];
   const key = todayKey();
-  if (!state.log[key] || typeof state.log[key] !== "object") state.log[key] = {};
-  return state.log[key];
+  if (!bag[key] || typeof bag[key] !== "object") bag[key] = {};
+  return bag[key];
 }
 
 function entryFor(id) {
@@ -145,8 +196,8 @@ function entryFor(id) {
 
 function ensureCycle() {
   if (!state.plan || state.plan.days.some((day) => day.weekday != null)) return;
-  if (state.cycle && state.cycle.anchor) return;
-  state.cycle = { anchor: todayKey(), offset: 0 };
+  if (currentCycle()) return;
+  state.cycle[state.category] = { anchor: todayKey(), offset: 0 };
   save(KEYS.cycle, state.cycle);
 }
 
@@ -159,7 +210,7 @@ function automaticDay(plan) {
       index: -1,
     };
   }
-  const cycle = state.cycle && state.cycle.anchor ? state.cycle : { anchor: todayKey(), offset: 0 };
+  const cycle = currentCycle() || { anchor: todayKey(), offset: 0 };
   const delta = daysBetween(cycle.anchor, todayKey()) + Number(cycle.offset || 0);
   const index = ((delta % plan.days.length) + plan.days.length) % plan.days.length;
   return { day: plan.days[index], cycle: true, index };
@@ -174,20 +225,31 @@ function nextTraining(plan) {
   return null;
 }
 
+function repText(reps) {
+  const specified = /[A-Za-zÁÉÍÓÚáéíóú]/.test(reps) || /["'′″×+]/.test(reps) || /rep/i.test(reps);
+  return specified ? reps : reps + " reps";
+}
+
+function intensityText(value) {
+  if (/rir|%|int/i.test(value)) return value;
+  return "Int. " + value;
+}
+
 function meta(ex) {
   const parts = [];
   if (ex.sets) {
     const label = ex.setsLabel && ex.setsLabel !== String(ex.sets) ? ex.setsLabel : String(ex.sets);
     parts.push(label + (Number(ex.sets) === 1 ? " serie" : " series"));
   }
-  if (ex.reps) {
-    const timed = /^\d+\s*(s|seg|min)\b/i.test(ex.reps);
-    const words = /[A-Za-zÁÉÍÓÚáéíóú]/.test(ex.reps) && !/^\d/.test(ex.reps);
-    parts.push(timed || words || /rep/i.test(ex.reps) ? ex.reps : ex.reps + " reps");
-  }
-  if (ex.weight) parts.push(ex.weight);
-  if (ex.rest) parts.push("descanso " + ex.rest);
+  if (ex.reps) parts.push(repText(ex.reps));
+  if (ex.intensity && ex.intensity !== "X") parts.push(intensityText(ex.intensity));
+  else if (ex.weight) parts.push(ex.weight);
+  if (ex.rest) parts.push(/pausa|descanso/i.test(ex.rest) ? ex.rest : "descanso " + ex.rest);
   return parts.join(" · ");
+}
+
+function videosOf(ex) {
+  return (Array.isArray(ex.videos) ? ex.videos : []).filter((item) => item && /^https:\/\//.test(item.url));
 }
 
 function seriesOf(day) {
@@ -229,15 +291,21 @@ function agenda(plan) {
 }
 
 function routineContext() {
-  if (!state.plan) return "Todavía no hay una rutina cargada.";
+  const head = "Categoría " + categoryLabel() + ". Rugby, sala de alto rendimiento del Carrasco Polo Club.";
+  if (!state.plan) return head + " Todavía no hay una rutina cargada en esta categoría.";
   const auto = automaticDay(state.plan);
   const picked = state.focusKey ? state.plan.days.find((day) => day.key === state.focusKey) : null;
   const day = picked || auto.day;
   if (!day) {
     const next = nextTraining(state.plan);
-    return next ? "Hoy no hay rutina. La próxima es " + next.day.label + "." : "Hoy no hay rutina cargada.";
+    return head + (next ? " Hoy no hay rutina. La próxima es " + next.day.label + "." : " Hoy no hay rutina cargada.");
   }
-  const lines = ["Día: " + day.label];
+  const lines = [head];
+  if (state.plan.week || state.plan.period) {
+    lines.push(["Semana " + (state.plan.week || ""), state.plan.period].filter(Boolean).join(" · "));
+  }
+  if (state.plan.tempo) lines.push(state.plan.tempo);
+  lines.push("Día: " + [day.session, day.label].filter(Boolean).join(" · "));
   let number = 1;
   for (const block of day.blocks) {
     if (block.title) lines.push(block.title);
@@ -246,7 +314,8 @@ function routineContext() {
       const done = entry.sets.filter(Boolean).length;
       const total = ex.sets || 1;
       let line = number + ". " + ex.name + " — " + (meta(ex) || "sin detalle") + ". Marcadas hoy: " + done + "/" + total;
-      if (entry.weight) line += ". Peso anotado: " + entry.weight;
+      if (entry.weight) line += ". Kilos anotados: " + entry.weight;
+      if (ex.notes) line += ". Obs: " + ex.notes;
       lines.push(line);
       number += 1;
     }
@@ -353,6 +422,33 @@ function setWeight(ex, value) {
   save(KEYS.log, state.log);
 }
 
+function videoAction(ex) {
+  const videos = videosOf(ex);
+  if (videos.length === 1) {
+    return el("a", {
+      class: "tech",
+      href: videos[0].url,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    }, "Video");
+  }
+  if (videos.length > 1) {
+    return el("button", { type: "button", class: "tech", onclick: () => openLinks(ex, videos) }, "Videos");
+  }
+  if (ex.check) return null;
+  return el("button", { type: "button", class: "tech", onclick: () => openVideos(ex) }, "Técnica");
+}
+
+function openLinks(ex, videos) {
+  openSheet(ex.name, [
+    el("ul", { class: "link-list" }, videos.map((video) => el("li", {}, el("a", {
+      href: video.url,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    }, video.label || "Video")))),
+  ]);
+}
+
 function exerciseCard(ex, number) {
   const entry = entryFor(ex.id);
   const total = ex.sets || 1;
@@ -368,30 +464,31 @@ function exerciseCard(ex, number) {
       onclick: () => toggleSet(ex, i),
     }, ex.sets ? String(i + 1) : "Hecho"));
   }
+  const foot = [el("div", { class: "sets" }, buttons)];
+  if (!ex.check) {
+    foot.push(el("input", {
+      class: "weight",
+      type: "text",
+      inputmode: "decimal",
+      maxlength: "24",
+      placeholder: "kg",
+      value: entry.weight,
+      autocomplete: "off",
+      autocorrect: "off",
+      spellcheck: "false",
+      "aria-label": "Kilos de hoy para " + ex.name,
+      oninput: (event) => setWeight(ex, event.target.value),
+    }));
+  }
   return el("article", { class: "card" + (done ? " done" : "") }, [
     el("div", { class: "card-top" }, [
       el("span", { class: "idx" }, String(number).padStart(2, "0")),
       el("h3", { class: "name" }, ex.name),
-      el("button", { type: "button", class: "tech", onclick: () => openVideos(ex) }, "Técnica"),
+      videoAction(ex),
     ]),
     meta(ex) ? el("p", { class: "meta" }, meta(ex)) : null,
     ex.notes ? el("p", { class: "note-line" }, ex.notes) : null,
-    el("div", { class: "card-foot" }, [
-      el("div", { class: "sets" }, buttons),
-      el("input", {
-        class: "weight",
-        type: "text",
-        inputmode: "decimal",
-        maxlength: "24",
-        placeholder: ex.weight || "kg",
-        value: entry.weight,
-        autocomplete: "off",
-        autocorrect: "off",
-        spellcheck: "false",
-        "aria-label": "Peso de hoy para " + ex.name,
-        oninput: (event) => setWeight(ex, event.target.value),
-      }),
-    ]),
+    el("div", { class: "card-foot" }, foot),
   ]);
 }
 
@@ -411,26 +508,70 @@ function progressBar(progress) {
   return bar;
 }
 
-function emptyState() {
+function loadingState() {
   return [
-    el("p", { class: "kicker" }, cap(longDate())),
-    el("h1", {}, "Hoy"),
-    el("p", { class: "lead" }, "Subí el Excel o el PDF de tu rutina. Tanda arma el día, te deja marcar las series y busca un video de cada ejercicio."),
-    el("button", {
-      class: "btn primary",
-      type: "button",
-      disabled: state.importing ? "" : null,
-      onclick: () => fileInput.click(),
-    }, state.importing ? "Leyendo…" : "Elegir archivo"),
-    el("button", {
-      class: "btn ghost",
-      type: "button",
-      disabled: state.importing ? "" : null,
-      onclick: () => loadExample(),
-    }, "Probar con el ejemplo"),
-    el("a", { class: "text-btn", href: "/sample/rutina-ejemplo.xlsx", download: "rutina-ejemplo.xlsx" }, "Descargar el Excel de ejemplo"),
-    el("p", { class: "fine" }, "La rutina queda en este teléfono. Los videos y el coach necesitan la compu donde está corriendo Tanda."),
+    el("p", { class: "kicker" }, "Carrasco Polo Club"),
+    el("h1", {}, categoryLabel()),
+    el("p", { class: "lead" }, "Cargando la planilla…"),
   ];
+}
+
+function emptyCategory() {
+  if (state.category === "m15" && state.loadError) {
+    return [
+      el("p", { class: "kicker" }, "Sala de alto rendimiento"),
+      el("h1", {}, "M15"),
+      el("p", { class: "lead" }, "No llegué a leer la planilla de M15. La compu tiene que estar prendida."),
+      el("button", { class: "btn primary", type: "button", onclick: () => location.reload() }, "Reintentar"),
+    ];
+  }
+  const nodes = [
+    el("p", { class: "kicker" }, "Sala de alto rendimiento"),
+    el("h1", {}, categoryLabel()),
+    el("p", { class: "lead" }, "Esta categoría todavía no tiene planilla. Cuando esté, va a aparecer día por día, igual que M15."),
+  ];
+  if (state.category !== "m15" && state.builtins.m15) {
+    nodes.push(el("button", { class: "btn primary", type: "button", onclick: () => selectCategory("m15") }, "Ver M15"));
+  }
+  nodes.push(el("button", {
+    class: "btn ghost",
+    type: "button",
+    disabled: state.importing ? "" : null,
+    onclick: () => fileInput.click(),
+  }, state.importing ? "Leyendo…" : "Subir planilla de " + categoryLabel()));
+  return nodes;
+}
+
+function openPlanilla() {
+  const plan = state.plan;
+  if (!plan) return;
+  const nodes = [];
+  if (plan.notice) nodes.push(el("p", { class: "sheet-copy" }, plan.notice));
+  if (plan.tempo) {
+    nodes.push(el("h3", { class: "sheet-label" }, "Tempo"));
+    nodes.push(el("p", { class: "sheet-copy" }, plan.tempo));
+  }
+  for (const tip of plan.tips || []) {
+    nodes.push(el("h3", { class: "sheet-label" }, tip.label));
+    nodes.push(el("p", { class: "sheet-copy" }, tip.text));
+  }
+  if (Array.isArray(plan.reference) && plan.reference.length) {
+    nodes.push(el("h3", { class: "sheet-label" }, "RPE"));
+    nodes.push(el("table", { class: "rpe" }, [
+      el("thead", {}, el("tr", {}, ["RPE", "Percepción", "RIR", "RM"].map((label) => el("th", {}, label)))),
+      el("tbody", {}, plan.reference.map((row) => el("tr", {}, [
+        el("td", {}, row.rpe),
+        el("td", {}, row.feel),
+        el("td", {}, row.rir),
+        el("td", {}, row.rm),
+      ]))),
+    ]));
+  }
+  if (Array.isArray(plan.ranges) && plan.ranges.length) {
+    nodes.push(el("h3", { class: "sheet-label" }, "Rango de repetición"));
+    nodes.push(el("ul", { class: "range-list" }, plan.ranges.map((row) => el("li", {}, row.label + " · " + row.load))));
+  }
+  openSheet(categoryLabel() + " · planilla", nodes);
 }
 
 function clearVisibleMarks(day) {
@@ -443,20 +584,33 @@ function clearVisibleMarks(day) {
 }
 
 function shiftCycle(by) {
-  const current = state.cycle && state.cycle.anchor ? state.cycle : { anchor: todayKey(), offset: 0 };
+  const current = currentCycle() || { anchor: todayKey(), offset: 0 };
   current.offset = Number(current.offset || 0) + by;
-  state.cycle = current;
-  save(KEYS.cycle, current);
+  state.cycle[state.category] = current;
+  save(KEYS.cycle, state.cycle);
   state.focusKey = null;
   render();
 }
 
+function selectCategory(id) {
+  if (!CATEGORIES.some((item) => item.id === id) || id === state.category) return;
+  state.category = id;
+  state.focusKey = null;
+  state.plan = planFor(id);
+  save(KEYS.category, id);
+  ensureCycle();
+  render({ resetScroll: true, centerCat: true });
+}
+
 function viewHoy() {
-  if (!state.plan) return emptyState();
+  if (!state.plan) {
+    if (!state.ready && state.category === "m15" && !state.overrides.m15) return loadingState();
+    return emptyCategory();
+  }
   const auto = automaticDay(state.plan);
   const picked = state.focusKey ? state.plan.days.find((day) => day.key === state.focusKey) : null;
   const day = picked || auto.day;
-  const nodes = [el("p", { class: "kicker" }, cap(longDate()))];
+  const nodes = [el("p", { class: "kicker" }, categoryLabel() + " · " + cap(longDate()))];
   if (!day) {
     nodes.push(el("h1", {}, "Descanso"));
     const next = nextTraining(state.plan);
@@ -485,9 +639,14 @@ function viewHoy() {
     ]));
   }
   nodes.push(el("h1", {}, day.label));
+  const sessionBits = [day.session, state.plan.week ? "Semana " + state.plan.week : "", state.plan.period].filter(Boolean);
+  if (sessionBits.length) nodes.push(el("p", { class: "fine" }, sessionBits.join(" · ")));
   const progress = seriesOf(day);
   nodes.push(el("p", { class: "tally" }, tallyText(progress)));
   nodes.push(progressBar(progress));
+  if (state.plan.tempo || (state.plan.tips && state.plan.tips.length) || (state.plan.reference && state.plan.reference.length)) {
+    nodes.push(el("button", { class: "text-btn planilla-link", type: "button", onclick: () => openPlanilla() }, "Tempo, cargas y RPE"));
+  }
   if (auto.cycle && !different) {
     nodes.push(el("div", { class: "cycle" }, [
       el("span", {}, "Día " + (auto.index + 1) + " de " + state.plan.days.length),
@@ -498,6 +657,7 @@ function viewHoy() {
   let number = 0;
   for (const block of day.blocks) {
     if (block.title) nodes.push(el("h2", { class: "block-title" }, block.title));
+    if (block.note) nodes.push(el("p", { class: "block-note" }, block.note));
     for (const ex of block.exercises) {
       number += 1;
       nodes.push(exerciseCard(ex, number));
@@ -522,6 +682,7 @@ function dayRow(row, auto) {
   const preview = titles.length
     ? titles.slice(0, 3).join(" · ")
     : row.day.blocks[0].exercises.slice(0, 2).map((ex) => ex.name).join(" · ");
+  const session = row.day.session ? row.day.session + " · " : "";
   return el("button", {
     class: "day",
     type: "button",
@@ -532,39 +693,71 @@ function dayRow(row, auto) {
     },
   }, [
     el("strong", {}, row.label),
-    el("em", {}, isToday ? "Hoy" : count + (count === 1 ? " ejercicio" : " ejercicios")),
+    el("em", {}, isToday ? "Hoy · " + (row.day.session || count + " ejercicios") : session + count + (count === 1 ? " ejercicio" : " ejercicios")),
     el("span", {}, preview),
   ]);
 }
 
 async function deletePlan() {
-  const ok = await ask("Borrar rutina", "Se borra de este teléfono. El archivo original no se toca.", "Borrar");
+  const builtin = validPlan(state.builtins[state.category]);
+  const override = validPlan(state.overrides[state.category]);
+  if (override && builtin) {
+    const ok = await ask(
+      "Volver a la planilla",
+      "Se quita el archivo subido en " + categoryLabel() + " y vuelve la rutina del club.",
+      "Restaurar"
+    );
+    if (!ok) return;
+    delete state.overrides[state.category];
+    save(KEYS.overrides, state.overrides);
+    state.plan = planFor(state.category);
+    state.focusKey = null;
+    render({ resetScroll: true });
+    return;
+  }
+  if (!override && builtin) {
+    toast("La planilla de " + categoryLabel() + " es la del club.");
+    return;
+  }
+  const ok = await ask("Borrar rutina", "Se borra de este teléfono la planilla de " + categoryLabel() + ".", "Borrar");
   if (!ok) return;
+  delete state.overrides[state.category];
+  save(KEYS.overrides, state.overrides);
   state.plan = null;
   state.focusKey = null;
-  localStorage.removeItem(KEYS.plan);
   state.tab = "hoy";
   render({ resetScroll: true });
 }
 
 function viewSemana() {
-  if (!state.plan) return emptyState();
+  if (!state.plan) {
+    if (!state.ready && state.category === "m15" && !state.overrides.m15) return loadingState();
+    return emptyCategory();
+  }
   const auto = automaticDay(state.plan);
-  const when = shortDate(state.plan.importedAt);
+  const override = validPlan(state.overrides[state.category]);
+  const when = override ? shortDate(state.plan.importedAt) : "";
   const nodes = [
-    el("p", { class: "kicker" }, "Plan"),
-    el("h1", {}, "Semana"),
-    el("p", { class: "fine" }, "Revisá que los días coincidan con tu archivo."),
+    el("p", { class: "kicker" }, [state.plan.week ? "Semana " + state.plan.week : "Plan", state.plan.period].filter(Boolean).join(" · ")),
+    el("h1", {}, categoryLabel()),
+    el("p", { class: "fine" }, "Cada fila es un día de la planilla."),
   ];
   for (const row of agenda(state.plan)) nodes.push(dayRow(row, auto));
   if (state.plan.warnings && state.plan.warnings.length) {
     nodes.push(el("p", { class: "fine" }, state.plan.warnings.join(" ")));
   }
-  nodes.push(el("footer", { class: "plan-foot" }, [
+  const foot = [
     el("p", { class: "fine" }, [state.plan.sourceName, when].filter(Boolean).join(" · ")),
-    el("button", { class: "text-btn", type: "button", onclick: () => fileInput.click() }, "Subir otro archivo"),
-    el("button", { class: "text-btn danger", type: "button", onclick: () => deletePlan() }, "Borrar rutina"),
-  ]));
+    el("button", { class: "text-btn", type: "button", onclick: () => fileInput.click() }, "Subir otra planilla"),
+  ];
+  if (override) {
+    foot.push(el("button", {
+      class: "text-btn danger",
+      type: "button",
+      onclick: () => deletePlan(),
+    }, validPlan(state.builtins[state.category]) ? "Volver a la planilla del club" : "Borrar rutina"));
+  }
+  nodes.push(el("footer", { class: "plan-foot" }, foot));
   return nodes;
 }
 
@@ -601,26 +794,27 @@ function viewCoach() {
   if (!state.ai) {
     nodes.push(el("section", { class: "setup" }, [
       el("h2", {}, "El coach corre en la compu"),
-      el("p", {}, "La rutina y las series funcionan igual. Para preguntar, creá una clave en console.x.ai, copiá .env.example a .env dentro de la carpeta gym y pegá XAI_API_KEY. Reiniciá Tanda."),
+      el("p", {}, "La rutina y las series funcionan igual. Para preguntar, creá una clave en console.x.ai, copiá .env.example a .env dentro de la carpeta gym y pegá XAI_API_KEY. Reiniciá la app."),
       el("a", { class: "text-btn", href: "https://console.x.ai", target: "_blank", rel: "noopener noreferrer" }, "Abrir console.x.ai"),
     ]));
   }
-  if (!state.chat.length && !state.coachBusy) {
-    nodes.push(el("p", { class: "lead" }, state.plan ? "Sabe qué te toca hoy y qué series marcaste." : "Cuando subas una rutina, la tiene en cuenta."));
+  const thread = messages();
+  if (!thread.length && !state.coachBusy) {
+    nodes.push(el("p", { class: "lead" }, state.plan ? "Sabe la planilla de " + categoryLabel() + " y las series que marcaste hoy." : "Cuando " + categoryLabel() + " tenga planilla, la tiene en cuenta."));
   }
-  for (const message of state.chat) {
+  for (const message of thread) {
     const kind = message.role === "user" ? "user" : message.role === "note" ? "note" : "coach";
     nodes.push(el("div", { class: "msg " + kind }, formatCoach(message.content)));
   }
   if (state.coachBusy) {
     nodes.push(el("div", { class: "msg coach", id: "coach-stream" }, el("p", { class: "fine" }, "Pensando…")));
   }
-  if (state.chat.length && !state.coachBusy) {
+  if (thread.length && !state.coachBusy) {
     nodes.push(el("button", {
       class: "text-btn",
       type: "button",
       onclick: () => {
-        state.chat = [];
+        state.chat[state.category] = [];
         save(KEYS.chat, state.chat);
         render();
       },
@@ -642,11 +836,16 @@ function render(options) {
   for (const button of document.querySelectorAll("[data-tab]")) {
     button.setAttribute("aria-selected", button.dataset.tab === state.tab ? "true" : "false");
   }
+  for (const button of document.querySelectorAll("[data-cat]")) {
+    const on = button.dataset.cat === state.category;
+    button.setAttribute("aria-selected", on ? "true" : "false");
+    if (on && options && options.centerCat) button.scrollIntoView({ inline: "center", block: "nearest" });
+  }
   composer.hidden = state.tab !== "coach";
   coachSend.disabled = Boolean(state.coachBusy);
   importBtn.setAttribute("aria-busy", state.importing ? "true" : "false");
   chips.replaceChildren();
-  const showChips = state.tab === "coach" && !state.coachBusy && !state.chat.some((message) => message.role === "user");
+  const showChips = state.tab === "coach" && !state.coachBusy && !messages().some((message) => message.role === "user");
   if (showChips) {
     for (const text of SUGGESTIONS) {
       chips.append(el("button", { type: "button", class: "chip", onclick: () => sendCoach(text) }, text));
@@ -655,16 +854,17 @@ function render(options) {
 }
 
 function applyPlan(plan) {
+  state.overrides[state.category] = plan;
+  save(KEYS.overrides, state.overrides);
   state.plan = plan;
   state.focusKey = null;
-  save(KEYS.plan, plan);
   if (!plan.days.some((day) => day.weekday != null)) {
-    state.cycle = { anchor: todayKey(), offset: 0 };
+    state.cycle[state.category] = { anchor: todayKey(), offset: 0 };
     save(KEYS.cycle, state.cycle);
   }
   state.tab = "hoy";
   const extra = plan.warnings && plan.warnings.length ? " Revisá la semana." : "";
-  toast(plan.stats.days + " días · " + plan.stats.exercises + " ejercicios." + extra);
+  toast(categoryLabel() + " · " + plan.stats.days + " días · " + plan.stats.exercises + " ejercicios." + extra);
 }
 
 async function upload(buffer, name) {
@@ -702,8 +902,8 @@ async function importFile(file) {
   try {
     if (state.plan) {
       const ok = await ask(
-        "Reemplazar rutina",
-        "La rutina guardada en este teléfono se cambia por este archivo. Si un ejercicio se llama igual, las marcas de hoy se mantienen.",
+        "Reemplazar " + categoryLabel(),
+        "La planilla de " + categoryLabel() + " en este teléfono se cambia por este archivo. Las otras categorías no se tocan.",
         "Reemplazar"
       );
       if (!ok) return;
@@ -723,40 +923,12 @@ async function importFile(file) {
   }
 }
 
-async function loadExample() {
-  if (importLock) return;
-  importLock = true;
-  let applied = false;
-  try {
-    if (state.plan) {
-      const ok = await ask(
-        "Usar el ejemplo",
-        "Reemplaza la rutina guardada en este teléfono por una de pecho, espalda, pierna y hombros.",
-        "Cargar ejemplo"
-      );
-      if (!ok) return;
-    }
-    state.importing = true;
-    toast("Leyendo el Excel…");
-    render();
-    const response = await fetch("/sample/rutina-ejemplo.xlsx");
-    if (!response.ok) throw new Error("No encontré el Excel de ejemplo.");
-    applyPlan(await upload(await response.arrayBuffer(), "rutina-ejemplo.xlsx"));
-    applied = true;
-  } catch (error) {
-    toast(humanError(error, "No pude cargar el ejemplo."));
-  } finally {
-    importLock = false;
-    state.importing = false;
-    render(applied ? { resetScroll: true } : undefined);
-  }
-}
-
 async function sendCoach(text) {
   const content = String(text || "").trim();
   if (!content || state.coachBusy) return;
-  state.chat.push({ role: "user", content: content.slice(0, 2000) });
-  state.chat = state.chat.slice(-30);
+  const thread = messages();
+  thread.push({ role: "user", content: content.slice(0, 2000) });
+  state.chat[state.category] = thread.slice(-30);
   state.coachBusy = true;
   save(KEYS.chat, state.chat);
   render({ stick: true });
@@ -767,7 +939,7 @@ async function sendCoach(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: state.chat.filter((message) => message.role === "user" || message.role === "assistant").slice(-12),
+        messages: messages().filter((message) => message.role === "user" || message.role === "assistant").slice(-12),
         context: routineContext(),
       }),
     });
@@ -808,9 +980,10 @@ async function sendCoach(text) {
   } catch (error) {
     failed = humanError(error, "Se cortó la respuesta.");
   } finally {
-    if (acc) state.chat.push({ role: "assistant", content: acc });
-    if (failed) state.chat.push({ role: "note", content: failed });
-    state.chat = state.chat.slice(-30);
+    const thread = messages();
+    if (acc) thread.push({ role: "assistant", content: acc });
+    if (failed) thread.push({ role: "note", content: failed });
+    state.chat[state.category] = thread.slice(-30);
     state.coachBusy = false;
     save(KEYS.chat, state.chat);
     render({ stick: true });
@@ -828,6 +1001,10 @@ for (const button of document.querySelectorAll("[data-tab]")) {
     state.tab = button.dataset.tab;
     render({ resetScroll: true });
   });
+}
+
+for (const button of document.querySelectorAll("[data-cat]")) {
+  button.addEventListener("click", () => selectCategory(button.dataset.cat));
 }
 
 composer.addEventListener("submit", (event) => {
@@ -881,8 +1058,30 @@ phone.addEventListener("drop", (event) => {
   if (file) importFile(file);
 });
 
+state.plan = planFor(state.category);
 ensureCycle();
 render();
+
+async function boot() {
+  await Promise.all(Object.entries(BUILTIN_FILES).map(async ([id, url]) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(String(response.status));
+      const plan = await response.json();
+      if (!validPlan(plan)) throw new Error("incompleta");
+      state.builtins[id] = plan;
+    } catch {
+      if (id === "m15") state.loadError = "No pude cargar la planilla de M15.";
+    }
+  }));
+  state.ready = true;
+  if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
+  ensureCycle();
+  render();
+  if (state.loadError && state.category === "m15" && !state.plan) toast(state.loadError);
+}
+
+boot();
 
 fetch("/api/health")
   .then((response) => response.json())

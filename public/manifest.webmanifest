@@ -1,12 +1,12 @@
 {
-  "name": "Tanda",
-  "short_name": "Tanda",
-  "description": "Rutina de gym del día, series y técnica.",
+  "name": "Sala de Alto Rendimiento",
+  "short_name": "Sala de Alto Rendimiento",
+  "description": "Rutina de rugby de la sala de alto rendimiento del Carrasco Polo Club.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#10110e",
-  "theme_color": "#10110e",
+  "background_color": "#0c1016",
+  "theme_color": "#0c1016",
   "lang": "es",
   "icons": [
     {
