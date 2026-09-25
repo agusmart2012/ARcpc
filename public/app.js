@@ -4,7 +4,19 @@ const KEYS = {
   log: "cpc.log",
   cycle: "cpc.cycle",
   chat: "cpc.chat",
+  notify: "cpc.notify",
+  notices: "cpc.notices",
+  stamp: "cpc.m15stamp",
 };
+const DAY_PICKS = [
+  [1, "L"],
+  [2, "M"],
+  [3, "X"],
+  [4, "J"],
+  [5, "V"],
+  [6, "S"],
+  [0, "D"],
+];
 const CATEGORIES = [
   { id: "m13", label: "M13" },
   { id: "m15", label: "M15" },
@@ -48,9 +60,11 @@ const storedCategory = load(KEYS.category);
 const storedOverrides = load(KEYS.overrides);
 const storedLog = load(KEYS.log);
 const storedChat = load(KEYS.chat);
+const storedNotices = load(KEYS.notices);
+const openingTab = new URLSearchParams(location.search).get("tab");
 
 const state = {
-  tab: "hoy",
+  tab: openingTab === "semana" || openingTab === "avisos" || openingTab === "coach" ? openingTab : "hoy",
   category: CATEGORIES.some((item) => item.id === storedCategory) ? storedCategory : "m15",
   overrides: objectBag(storedOverrides),
   builtins: {},
@@ -58,6 +72,10 @@ const state = {
   log: objectBag(storedLog),
   cycle: objectBag(load(KEYS.cycle)),
   chat: objectBag(storedChat),
+  notify: defaultNotify(objectBag(load(KEYS.notify))),
+  notices: Array.isArray(storedNotices) ? storedNotices.filter((item) => item && item.title).slice(0, 20) : [],
+  pushEndpoint: "",
+  httpsPort: 0,
   focusKey: null,
   ai: false,
   importing: false,
@@ -73,6 +91,19 @@ let toastTimer = 0;
 
 function objectBag(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function defaultNotify(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const days = Array.isArray(source.days) ? source.days.map(Number).filter((day) => day >= 0 && day <= 6) : [];
+  return {
+    remind: source.remind !== false,
+    routine: source.routine !== false,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(source.time) ? source.time : "17:00",
+    days: days.length ? [...new Set(days)] : [1, 2, 3, 4, 5],
+    categoryId: CATEGORIES.some((item) => item.id === source.categoryId) ? source.categoryId : "m15",
+    lastLocal: typeof source.lastLocal === "string" ? source.lastLocal : "",
+  };
 }
 
 function load(key) {
@@ -712,6 +743,7 @@ async function deletePlan() {
     save(KEYS.overrides, state.overrides);
     state.plan = planFor(state.category);
     state.focusKey = null;
+    announceRoutine("Volvió la planilla del club.");
     render({ resetScroll: true });
     return;
   }
@@ -726,6 +758,7 @@ async function deletePlan() {
   state.plan = null;
   state.focusKey = null;
   state.tab = "hoy";
+  announceRoutine("Se borró la planilla de esta categoría.");
   render({ resetScroll: true });
 }
 
@@ -823,8 +856,323 @@ function viewCoach() {
   return nodes;
 }
 
+function sessionsOf(plan) {
+  if (!plan) return [];
+  return plan.days.filter((day) => day.weekday != null).map((day) => {
+    const central = day.blocks.find((block) => /parte central/i.test(block.title || ""));
+    const pool = central ? central.exercises : day.blocks.flatMap((block) => block.exercises);
+    const focus = (pool || []).find((item) => item && !item.check);
+    return {
+      weekday: day.weekday,
+      label: day.label,
+      session: day.session || "",
+      focus: focus ? focus.name : "",
+    };
+  });
+}
+
+function notifyPayload() {
+  const prefs = state.notify;
+  const found = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  let timezone = "America/Montevideo";
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
+  } catch {
+    /* queda Montevideo */
+  }
+  return {
+    remind: prefs.remind,
+    routine: prefs.routine,
+    time: prefs.time,
+    days: prefs.days,
+    timezone,
+    category: found ? found.label : "M15",
+    sessions: sessionsOf(planFor(prefs.categoryId)),
+  };
+}
+
+function decodeKey(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let index = 0; index < raw.length; index += 1) out[index] = raw.charCodeAt(index);
+  return out;
+}
+
+let syncTimer = 0;
+
+function saveNotify() {
+  save(KEYS.notify, state.notify);
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    publishNotify().catch(() => {});
+  }, 250);
+}
+
+async function publishNotify() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (Notification.permission !== "granted") return;
+  const reg = await navigator.serviceWorker.ready;
+  let subscription = await reg.pushManager.getSubscription();
+  if (!subscription) {
+    const response = await fetch("/api/notifications/key");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.publicKey) return;
+    subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeKey(data.publicKey),
+    });
+  }
+  state.pushEndpoint = subscription.endpoint;
+  await fetch("/api/notifications/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscription: subscription.toJSON(), prefs: notifyPayload() }),
+  });
+}
+
+function recordNotice(title, body) {
+  state.notices = [{ title, body, at: new Date().toISOString() }, ...state.notices].slice(0, 20);
+  save(KEYS.notices, state.notices);
+  if (state.tab === "avisos") render();
+}
+
+async function showSystemNotice(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const options = { body, icon: "/icon-192.png", badge: "/icon-192.png", data: { url: "/?tab=avisos" } };
+  try {
+    const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (reg) await reg.showNotification(title, options);
+    else new Notification(title, { body });
+  } catch {
+    try { new Notification(title, { body }); } catch { /* el teléfono no mostró el aviso */ }
+  }
+}
+
+async function deliverNotice(title, body, options) {
+  recordNotice(title, body);
+  await showSystemNotice(title, body);
+  if (options && options.localOnly) return;
+  fetch("/api/notifications/routine", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, body, endpoint: state.pushEndpoint || "" }),
+  }).catch(() => {});
+}
+
+function announceRoutine(text) {
+  if (!state.notify.routine) return;
+  deliverNotice("Cambió la rutina de " + categoryLabel(), text).catch(() => {});
+}
+
+async function enableNotifications() {
+  if (!window.isSecureContext) {
+    toast("En el iPhone abrí la dirección https de la compu y aceptá el certificado.");
+    return;
+  }
+  if (!("Notification" in window)) {
+    toast("Este navegador no muestra notificaciones.");
+    return;
+  }
+  const result = await Notification.requestPermission();
+  if (result !== "granted") {
+    toast("Las notificaciones quedaron bloqueadas en el teléfono.");
+    render();
+    return;
+  }
+  try {
+    await publishNotify();
+  } catch {
+    toast("Quedaron activadas en el teléfono. El aviso con la pantalla bloqueada necesita la compu prendida.");
+  }
+  await deliverNotice("Avisos activados", "Te vamos a recordar la sala y los cambios de rutina.", { localOnly: true });
+  render();
+}
+
+async function testNotice() {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    await enableNotifications();
+    return;
+  }
+  if (state.pushEndpoint) {
+    const response = await fetch("/api/notifications/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: state.pushEndpoint }),
+    }).catch(() => null);
+    if (response && response.ok) {
+      recordNotice("Prueba de la sala", "Si leés esto, los avisos llegan con la app cerrada.");
+      toast("Mandé un aviso de prueba.");
+      return;
+    }
+  }
+  await deliverNotice("Prueba de la sala", "Si leés esto, los avisos están llegando.", { localOnly: true });
+}
+
+function checkLocalReminder() {
+  const prefs = state.notify;
+  if (!prefs.remind || state.pushEndpoint) return;
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  if (time !== prefs.time || !prefs.days.includes(now.getDay())) return;
+  if (prefs.lastLocal === todayKey()) return;
+  state.notify.lastLocal = todayKey();
+  save(KEYS.notify, state.notify);
+  const label = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  const session = sessionsOf(planFor(prefs.categoryId)).find((item) => item.weekday === now.getDay());
+  const head = [label && label.label, session && session.label, session && session.session].filter(Boolean).join(" · ");
+  const body = head
+    ? head + "." + (session && session.focus ? " Arranca por " + session.focus + "." : "")
+    : "Hoy no hay planilla cargada para " + (label ? label.label : "esa categoría") + ".";
+  deliverNotice("Hoy toca sala", body, { localOnly: true }).catch(() => {});
+}
+
+function planStamp(plan) {
+  if (!plan) return "";
+  return plan.days.map((day) => day.label + ":" + day.blocks.map((block) => block.exercises.map((item) => item.name).join(",")).join("|")).join("\n");
+}
+
+function watchPlanStamp() {
+  const stamp = planStamp(state.builtins.m15);
+  if (!stamp) return;
+  const previous = load(KEYS.stamp);
+  if (previous && previous !== stamp) announceRoutine("Se actualizó la planilla de M15" + (state.builtins.m15.week ? ", semana " + state.builtins.m15.week : "") + ".");
+  save(KEYS.stamp, stamp);
+}
+
+function switchRow(label, on, onclick) {
+  return el("div", { class: "switch-row" }, [
+    el("span", {}, label),
+    el("button", {
+      type: "button",
+      class: "switch",
+      role: "switch",
+      "aria-pressed": on ? "true" : "false",
+      "aria-label": label,
+      onclick,
+    }, el("i")),
+  ]);
+}
+
+function reminderSummary() {
+  const prefs = state.notify;
+  const names = DAY_PICKS.filter(([day]) => prefs.days.includes(day)).map(([, label]) => label);
+  if (!prefs.remind) return "El recordatorio está apagado.";
+  if (!names.length) return "Elegí al menos un día.";
+  return "Días " + names.join(" ") + ", a las " + prefs.time + ".";
+}
+
+function viewAvisos() {
+  const prefs = state.notify;
+  const permission = "Notification" in window ? Notification.permission : "unsupported";
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const granted = permission === "granted";
+  const status = el("section", { class: "notify-card" }, [
+    el("h2", {}, granted ? "Notificaciones activadas" : "Notificaciones apagadas"),
+    el("p", {}, granted
+      ? "Te avisan para ir a la sala y cuando cambia una planilla."
+      : "Activálas en este teléfono. En el iPhone salen desde el ícono de inicio."),
+  ]);
+  if (!window.isSecureContext) {
+    const port = state.httpsPort || (location.port === "4173" ? "4174" : "");
+    status.append(el("p", { class: "fine", style: "margin-top:10px" }, "En el iPhone abrí la dirección https y aceptá el certificado. Recién ahí se pueden activar."));
+    if (port) {
+      const href = "https://" + location.hostname + ":" + port + "/";
+      status.append(el("a", { class: "text-btn", href }, href));
+    }
+  } else if (iphone && !standalone) {
+    status.append(el("p", { class: "fine", style: "margin-top:10px" }, "En Safari: Compartir, y después Agregar a inicio. Los avisos suenan desde ese ícono."));
+  }
+  status.append(el("button", {
+    class: "btn primary",
+    type: "button",
+    style: "margin-top:12px",
+    onclick: () => { granted ? testNotice() : enableNotifications(); },
+  }, granted ? "Probar aviso" : "Activar notificaciones"));
+  const categoryName = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  const history = state.notices.length
+    ? el("div", { class: "notice-list" }, state.notices.map((item) => el("div", { class: "notice-item" }, [
+        el("strong", {}, item.title),
+        el("span", {}, item.body),
+      ])))
+    : el("p", { class: "fine", style: "margin-top:8px" }, "Cuando haya un aviso, queda anotado acá.");
+  return [
+    el("p", { class: "kicker" }, "Sala"),
+    el("h1", {}, "Avisos"),
+    status,
+    el("section", { class: "notify-card" }, [
+      el("h2", {}, "Recordatorio de sala"),
+      el("p", {}, "Los días que elijas, a la hora que elijas."),
+      switchRow("Avisame para ir", prefs.remind, () => {
+        state.notify.remind = !state.notify.remind;
+        saveNotify();
+        render();
+      }),
+      el("div", { class: "time-row" }, [
+        el("span", {}, "Hora"),
+        el("input", {
+          type: "time",
+          value: prefs.time,
+          "aria-label": "Hora del recordatorio",
+          oninput: (event) => {
+            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(event.target.value)) return;
+            state.notify.time = event.target.value;
+            saveNotify();
+          },
+        }),
+      ]),
+      el("div", { class: "day-picks" }, DAY_PICKS.map(([weekday, label]) => el("button", {
+        type: "button",
+        class: "day-pick",
+        "aria-pressed": prefs.days.includes(weekday) ? "true" : "false",
+        "aria-label": label,
+        onclick: () => {
+          const days = new Set(state.notify.days);
+          if (days.has(weekday)) days.delete(weekday);
+          else days.add(weekday);
+          state.notify.days = [...days];
+          saveNotify();
+          render();
+        },
+      }, label))),
+      el("p", { class: "fine", style: "margin-top:10px" }, reminderSummary()),
+    ]),
+    el("section", { class: "notify-card" }, [
+      el("h2", {}, "Cambios de rutina"),
+      el("p", {}, "Cuando se carga una planilla nueva o se actualiza la del club."),
+      switchRow("Avisame si cambia", prefs.routine, () => {
+        state.notify.routine = !state.notify.routine;
+        saveNotify();
+        render();
+      }),
+    ]),
+    el("section", { class: "notify-card" }, [
+      el("h2", {}, "Categoría del aviso"),
+      el("p", {}, "El recordatorio usa la planilla de " + (categoryName ? categoryName.label : "M15") + "."),
+      el("div", { class: "day-picks" }, CATEGORIES.map((item) => el("button", {
+        type: "button",
+        class: "day-pick wide",
+        "aria-pressed": prefs.categoryId === item.id ? "true" : "false",
+        onclick: () => {
+          state.notify.categoryId = item.id;
+          saveNotify();
+          render();
+        },
+      }, item.label))),
+    ]),
+    el("section", { class: "notify-card" }, [
+      el("h2", {}, "Últimos avisos"),
+      history,
+    ]),
+  ];
+}
+
 function view() {
   if (state.tab === "semana") return viewSemana();
+  if (state.tab === "avisos") return viewAvisos();
   if (state.tab === "coach") return viewCoach();
   return viewHoy();
 }
@@ -865,6 +1213,8 @@ function applyPlan(plan) {
   state.tab = "hoy";
   const extra = plan.warnings && plan.warnings.length ? " Revisá la semana." : "";
   toast(categoryLabel() + " · " + plan.stats.days + " días · " + plan.stats.exercises + " ejercicios." + extra);
+  announceRoutine(plan.sourceName ? "Quedó cargada " + plan.sourceName + "." : "Quedó cargada una planilla nueva.");
+  publishNotify().catch(() => {});
 }
 
 async function upload(buffer, name) {
@@ -1077,8 +1427,10 @@ async function boot() {
   state.ready = true;
   if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
   ensureCycle();
+  watchPlanStamp();
   render();
   if (state.loadError && state.category === "m15" && !state.plan) toast(state.loadError);
+  publishNotify().catch(() => {});
 }
 
 boot();
@@ -1087,9 +1439,20 @@ fetch("/api/health")
   .then((response) => response.json())
   .then((data) => {
     state.ai = Boolean(data && data.ai);
-    if (state.tab === "coach") render();
+    state.httpsPort = data && data.httpsPort ? data.httpsPort : 0;
+    if (state.tab === "coach" || state.tab === "avisos") render();
   })
   .catch(() => {});
+
+setInterval(checkLocalReminder, 20000);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (!event.data || event.data.type !== "open-avisos") return;
+    state.tab = "avisos";
+    render({ resetScroll: true });
+  });
+}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});

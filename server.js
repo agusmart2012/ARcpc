@@ -1,11 +1,14 @@
 "use strict";
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const selfsigned = require("selfsigned");
 const { parseUpload } = require("./lib/parse");
 const { searchVideos } = require("./lib/youtube");
+const pushhub = require("./lib/pushhub");
 
 const ROOT = path.join(__dirname, "public");
 const MODEL = "grok-4.7";
@@ -233,6 +236,77 @@ async function handleImport(req, res) {
   }
 }
 
+function lanAddresses() {
+  const ips = [];
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const net of list || []) {
+      const v4 = net.family === "IPv4" || net.family === 4;
+      if (v4 && !net.internal && /^\d+\.\d+\.\d+\.\d+$/.test(net.address)) ips.push(net.address);
+    }
+  }
+  return [...new Set(ips)];
+}
+
+async function ensureCert(ips) {
+  const dir = path.join(__dirname, "data");
+  fs.mkdirSync(dir, { recursive: true });
+  const names = ["localhost", "127.0.0.1", ...ips];
+  const marker = names.join(",");
+  const markerFile = path.join(dir, "cert-ips.txt");
+  const keyFile = path.join(dir, "key.pem");
+  const certFile = path.join(dir, "cert.pem");
+  if (fs.existsSync(keyFile) && fs.existsSync(certFile) && fs.existsSync(markerFile) && fs.readFileSync(markerFile, "utf8") === marker) {
+    return { key: fs.readFileSync(keyFile), cert: fs.readFileSync(certFile) };
+  }
+  const altNames = [
+    { type: 2, value: "localhost" },
+    { type: 7, ip: "127.0.0.1" },
+  ];
+  for (const ip of ips) altNames.push({ type: 7, ip });
+  const pems = await selfsigned.generate([{ name: "commonName", value: "Sala de Alto Rendimiento" }], {
+    days: 825,
+    keySize: 2048,
+    algorithm: "sha256",
+    extensions: [{ name: "subjectAltName", altNames }],
+  });
+  fs.writeFileSync(keyFile, pems.private);
+  fs.writeFileSync(certFile, pems.cert);
+  fs.writeFileSync(markerFile, marker);
+  return { key: pems.private, cert: pems.cert };
+}
+
+async function readJson(req) {
+  try {
+    return JSON.parse((await readBody(req, MAX_JSON)).toString("utf8") || "{}");
+  } catch (error) {
+    const failure = new Error(error.status ? error.message : "No pude leer el mensaje.");
+    failure.status = error.status || 400;
+    throw failure;
+  }
+}
+
+async function handleNotifyKey(res) {
+  sendJson(res, 200, { publicKey: pushhub.publicKey() });
+}
+
+async function handleNotifySubscribe(req, res) {
+  const body = await readJson(req);
+  pushhub.saveSubscription(body.subscription, body.prefs);
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleNotifyTest(req, res) {
+  const body = await readJson(req);
+  const sent = await pushhub.sendTest(String(body.endpoint || ""));
+  sendJson(res, sent ? 200 : 404, sent ? { ok: true } : { error: "missing", message: "Este teléfono todavía no está suscrito." });
+}
+
+async function handleNotifyRoutine(req, res) {
+  const body = await readJson(req);
+  const sent = await pushhub.sendRoutine(body.title, body.body, String(body.endpoint || ""));
+  sendJson(res, 200, { ok: true, sent });
+}
+
 async function handleVideos(req, res, url) {
   try {
     const videos = await searchVideos(url.searchParams.get("q") || "");
@@ -268,12 +342,19 @@ function serveStatic(res, urlPath) {
   });
 }
 
-function createServer() {
-  return http.createServer(async (req, res) => {
-    const url = new URL(req.url || "/", "http://localhost");
-    try {
+let securePort = 0;
+
+function handleRequest(req, res) {
+  const url = new URL(req.url || "/", "http://localhost");
+  return Promise.resolve()
+    .then(async () => {
       if (req.method === "GET" && url.pathname === "/api/health") {
-        sendJson(res, 200, { ok: true, ai: Boolean(process.env.XAI_API_KEY), model: MODEL });
+        sendJson(res, 200, {
+          ok: true,
+          ai: Boolean(process.env.XAI_API_KEY),
+          model: MODEL,
+          httpsPort: securePort || null,
+        });
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/import") {
@@ -288,16 +369,42 @@ function createServer() {
         await handleCoach(req, res);
         return;
       }
+      if (req.method === "GET" && url.pathname === "/api/notifications/key") {
+        await handleNotifyKey(res);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/notifications/subscribe") {
+        await handleNotifySubscribe(req, res);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/notifications/test") {
+        await handleNotifyTest(req, res);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/notifications/routine") {
+        await handleNotifyRoutine(req, res);
+        return;
+      }
       if (req.method === "GET") {
         serveStatic(res, url.pathname);
         return;
       }
       sendJson(res, 405, { error: "method", message: "Método no permitido." });
-    } catch (error) {
-      if (!res.headersSent) sendJson(res, 500, { error: "server", message: "Se rompió algo en el servidor." });
-      else res.end();
-      console.error(error);
-    }
+    })
+    .catch((error) => {
+      if (!res.headersSent) {
+        sendJson(res, error.status || 500, {
+          error: "server",
+          message: error.status ? error.message : "Se rompió algo en el servidor.",
+        });
+      } else res.end();
+      if (!error.status) console.error(error);
+    });
+}
+
+function createServer() {
+  return http.createServer((req, res) => {
+    handleRequest(req, res);
   });
 }
 
@@ -327,11 +434,35 @@ function listen(port = Number(process.env.PORT) || 4173) {
     }
     throw error;
   });
+  const nextSecure = Number(process.env.HTTPS_PORT) || port + 1;
+  ensureCert(lanAddresses()).then((tls) => {
+    const secure = https.createServer(tls, (req, res) => {
+      handleRequest(req, res);
+    });
+    secure.on("error", (error) => {
+      console.error(error.code === "EADDRINUSE"
+        ? "El puerto " + nextSecure + " está ocupado. Las notificaciones del iPhone necesitan ese https."
+        : error);
+    });
+    secure.listen(nextSecure, "0.0.0.0", () => {
+      securePort = nextSecure;
+    });
+  }).catch((error) => {
+    console.error("No pude abrir el https de las notificaciones.");
+    console.error(error);
+  });
+  setInterval(() => {
+    pushhub.dispatchDue(new Date()).catch((error) => console.error(error));
+  }, 20000);
+  pushhub.dispatchDue(new Date()).catch(() => {});
   server.listen(port, "0.0.0.0", () => {
     console.log("");
     console.log("  Sala de Alto Rendimiento · Carrasco Polo Club");
     console.log("  En esta compu:  http://localhost:" + port);
-    for (const url of lanUrls(port)) console.log("  En el iPhone:   " + url);
+    for (const url of lanUrls(port)) {
+      console.log("  En el iPhone:   " + url);
+      console.log("  Avisos iPhone:  " + url.replace("http://", "https://").replace(":" + port, ":" + nextSecure));
+    }
     console.log("  Coach:          " + (process.env.XAI_API_KEY ? "listo (Grok)" : "falta XAI_API_KEY en .env"));
     console.log("");
   });
