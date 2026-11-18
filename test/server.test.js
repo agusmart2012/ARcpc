@@ -51,8 +51,9 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     assert.match(html, /data-cat="m15"/);
     assert.match(html, /PRE-INTER/);
     assert.match(html, /viewport-fit=cover/);
-    assert.match(html, /id="gate"/);
     assert.match(html, /id="gate-ficha"/);
+    assert.doesNotMatch(html, /Crear cuenta/);
+    assert.doesNotMatch(html, /id="gate-login-tab"/);
     assert.match(html, /data-tab="cuenta"/);
     assert.match(html, />Perfil</);
     assert.doesNotMatch(html, /data-tab="coach"/);

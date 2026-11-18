@@ -30,42 +30,16 @@
             <span class="battery"><b></b></span>
           </span>
         </div>
-        <div class="app gated" id="app">
+        <div class="app" id="app">
           <div class="ambient" aria-hidden="true">
             <img class="ambient-crest" src="/crest.png" alt="">
           </div>
-          <div id="gate" class="gate">
-            <div id="gate-auth" class="gate-card glass">
-              <img class="gate-crest" src="/crest.png" alt="Escudo del Carrasco Polo Club" width="54" height="60">
-              <p class="gate-kicker">Carrasco Polo Club</p>
-              <h1>Sala de Alto Rendimiento</h1>
-              <p class="gate-copy">Creá tu cuenta y las series viajan con vos. Entras desde cualquier teléfono y sigue todo guardado.</p>
-              <div class="gate-modes" role="tablist" aria-label="Cuenta">
-                <button type="button" class="gate-mode" id="gate-login-tab" aria-selected="true">Entrar</button>
-                <button type="button" class="gate-mode" id="gate-register-tab" aria-selected="false">Crear cuenta</button>
-              </div>
-              <form id="gate-form">
-                <label class="gate-field" id="gate-name-wrap" hidden>
-                  <span>Nombre</span>
-                  <input id="gate-name" name="nombre" autocomplete="name" maxlength="40" placeholder="Tu nombre">
-                </label>
-                <label class="gate-field">
-                  <span>Mail</span>
-                  <input id="gate-email" name="email" type="email" autocomplete="username" inputmode="email" required maxlength="120" placeholder="tu@mail.com">
-                </label>
-                <label class="gate-field">
-                  <span>Clave</span>
-                  <input id="gate-password" name="password" type="password" autocomplete="current-password" required minlength="6" maxlength="72" placeholder="6 caracteres o más">
-                </label>
-                <p class="gate-error" id="gate-error" hidden></p>
-                <button type="submit" class="btn primary" id="gate-submit">Entrar</button>
-              </form>
-            </div>
-            <div id="gate-ficha" class="gate-card glass" hidden></div>
+          <div id="gate" class="gate ficha-open" hidden>
+            <div id="gate-ficha" class="gate-card glass"></div>
           </div>
           <header class="chrome">
             <div class="top">
-              <button type="button" class="brand glass" id="account-btn" aria-label="Tu cuenta">
+              <button type="button" class="brand glass" id="account-btn" aria-label="Perfil">
                 <img class="crest" src="/crest.png" alt="" width="34" height="38">
                 <span class="brand-name">Sala de<br>Alto Rendimiento</span>
               </button>

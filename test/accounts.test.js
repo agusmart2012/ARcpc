@@ -65,9 +65,8 @@ test("registro, login, Excel y datos viajan con la cuenta", async () => {
     const page = await request(server, { path: "/" });
     assert.equal(page.status, 200);
     const html = page.raw.toString("utf8");
-    assert.match(html, /id="gate"/);
-    assert.match(html, /Crear cuenta/);
     assert.match(html, /Carrasco Polo Club/);
+    assert.doesNotMatch(html, /Crear cuenta/);
 
     const health = await request(server, { path: "/api/health" });
     assert.equal(health.status, 200);

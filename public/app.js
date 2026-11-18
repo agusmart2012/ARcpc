@@ -7,7 +7,6 @@ const KEYS = {
   notify: "cpc.notify",
   notices: "cpc.notices",
   stamp: "cpc.m15stamp",
-  account: "cpc.account",
   profile: "cpc.profile",
 };
 const DAY_PICKS = [
@@ -99,7 +98,6 @@ const state = {
   importing: false,
   ready: false,
   loadError: "",
-  account: objectBag(load(KEYS.account)).email ? objectBag(load(KEYS.account)) : null,
   profile: defaultProfile(load(KEYS.profile)),
 };
 
@@ -132,6 +130,7 @@ function defaultProfile(raw) {
   const stats = source.stats && typeof source.stats === "object" ? source.stats : {};
   const rol = ROLES.some((item) => item.id === source.rol) ? source.rol : "";
   return {
+    nombre: String(source.nombre || "").replace(/\s+/g, " ").trim().slice(0, 40),
     rol,
     posicion: POSICIONES.includes(source.posicion) ? source.posicion : "",
     edad: clampNum(source.edad, 6, 80),
@@ -152,7 +151,8 @@ function defaultProfile(raw) {
 
 function profileReady(profile) {
   const p = profile || state.profile;
-  if (!p || !p.rol) return false;
+  if (!p || String(p.nombre || "").trim().length < 2) return false;
+  if (!p.rol) return false;
   if (p.rol === "jugador" && !p.posicion) return false;
   if (!p.edad || !p.altura || !p.peso) return false;
   if (!String(p.ciudad || "").trim()) return false;
@@ -213,146 +213,12 @@ function saveLocal(key, value) {
 
 function save(key, value) {
   saveLocal(key, value);
-  queueCloudSave();
 }
 
-let cloudTimer = 0;
-let cloudBusy = false;
-let cloudDirty = false;
-
-function snapshot() {
-  return {
-    category: state.category,
-    overrides: state.overrides,
-    log: state.log,
-    cycle: state.cycle,
-    chat: state.chat,
-    notify: state.notify,
-    notices: state.notices,
-    stamp: load(KEYS.stamp),
-    profile: state.profile,
-  };
-}
-
-function applySnapshot(data) {
-  if (!data || typeof data !== "object") return;
-  if (CATEGORIES.some((item) => item.id === data.category)) {
-    state.category = data.category;
-    saveLocal(KEYS.category, state.category);
-  }
-  if (data.overrides && typeof data.overrides === "object") {
-    state.overrides = objectBag(data.overrides);
-    saveLocal(KEYS.overrides, state.overrides);
-  }
-  if (data.log && typeof data.log === "object") {
-    state.log = objectBag(data.log);
-    saveLocal(KEYS.log, state.log);
-  }
-  if (data.cycle && typeof data.cycle === "object") {
-    state.cycle = objectBag(data.cycle);
-    saveLocal(KEYS.cycle, state.cycle);
-  }
-  if (data.chat && typeof data.chat === "object") {
-    state.chat = objectBag(data.chat);
-    saveLocal(KEYS.chat, state.chat);
-  }
-  if (data.notify && typeof data.notify === "object") {
-    state.notify = defaultNotify(data.notify);
-    saveLocal(KEYS.notify, state.notify);
-  }
-  if (Array.isArray(data.notices)) {
-    state.notices = data.notices.filter((item) => item && item.title).slice(0, 20);
-    saveLocal(KEYS.notices, state.notices);
-  }
-  if (typeof data.stamp === "string") saveLocal(KEYS.stamp, data.stamp);
-  if (data.profile && typeof data.profile === "object") {
-    state.profile = defaultProfile(data.profile);
-    saveLocal(KEYS.profile, state.profile);
-  }
-}
-
-function queueCloudSave() {
-  if (!state.account) return;
-  cloudDirty = true;
-  clearTimeout(cloudTimer);
-  cloudTimer = setTimeout(pushCloud, 700);
-}
-
-async function pushCloud() {
-  if (!state.account) return;
-  if (cloudBusy) {
-    cloudDirty = true;
-    return;
-  }
-  cloudBusy = true;
-  cloudDirty = false;
-  try {
-    const response = await fetch("/api/auth/data", {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: snapshot() }),
-      keepalive: true,
-    });
-    if (response.status === 401) {
-      state.account = null;
-      showGate();
-      return;
-    }
-  } catch {
-    cloudDirty = true;
-  } finally {
-    cloudBusy = false;
-    if (cloudDirty) {
-      clearTimeout(cloudTimer);
-      cloudTimer = setTimeout(pushCloud, 1600);
-    }
-  }
-}
-
-async function authApi(url, options) {
-  const response = await fetch(url, Object.assign({
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-  }, options || {}));
-  let body = {};
-  try {
-    body = await response.json();
-  } catch {
-    body = {};
-  }
-  if (!response.ok) {
-    const error = new Error((body && body.message) || "No pude hablar con el servidor.");
-    error.status = response.status;
-    throw error;
-  }
-  return body;
-}
-
-function unlockApp() {
+function closeFicha() {
   app.classList.remove("gated");
   const gate = document.getElementById("gate");
-  if (gate) {
-    gate.hidden = true;
-    gate.classList.remove("ficha-open");
-  }
-  const ficha = document.getElementById("gate-ficha");
-  if (ficha) ficha.hidden = true;
-  const auth = document.getElementById("gate-auth");
-  if (auth) auth.hidden = false;
-}
-
-function showGate() {
-  app.classList.add("gated");
-  const gate = document.getElementById("gate");
-  if (gate) {
-    gate.hidden = false;
-    gate.classList.remove("ficha-open");
-  }
-  const auth = document.getElementById("gate-auth");
-  const ficha = document.getElementById("gate-ficha");
-  if (auth) auth.hidden = false;
-  if (ficha) ficha.hidden = true;
+  if (gate) gate.hidden = true;
 }
 
 function showFichaGate() {
@@ -362,107 +228,8 @@ function showFichaGate() {
     gate.hidden = false;
     gate.classList.add("ficha-open");
   }
-  const auth = document.getElementById("gate-auth");
-  const ficha = document.getElementById("gate-ficha");
-  if (auth) auth.hidden = true;
-  if (ficha) ficha.hidden = false;
   fichaStep = 1;
   renderFicha();
-}
-
-function finishLogin() {
-  unlockApp();
-  state.plan = planFor(state.category);
-  ensureCycle();
-  if (state.ready) render({ centerCat: true });
-}
-
-function enterAccount(user, remote) {
-  if (!user || !user.email) return;
-  state.account = { id: user.id, nombre: user.nombre, email: user.email };
-  saveLocal(KEYS.account, state.account);
-  if (remote && remote.data && typeof remote.data === "object") applySnapshot(remote.data);
-  else queueCloudSave();
-  if (!profileReady(state.profile)) {
-    showFichaGate();
-    return;
-  }
-  finishLogin();
-}
-
-function clearLocalUser() {
-  for (const key of Object.values(KEYS)) {
-    try { localStorage.removeItem(key); } catch { /* sigue */ }
-  }
-  state.account = null;
-  state.profile = defaultProfile({});
-  state.category = "m15";
-  state.overrides = {};
-  state.log = {};
-  state.cycle = {};
-  state.chat = {};
-  state.notify = defaultNotify({});
-  state.notices = [];
-  state.plan = planFor("m15");
-  state.tab = "hoy";
-}
-
-async function logoutAccount() {
-  closeSheet();
-  try {
-    await authApi("/api/auth/logout", { method: "POST", body: "{}" });
-  } catch {
-    /* igual cerramos acá */
-  }
-  clearLocalUser();
-  showGate();
-  toast("Cerraste sesión.");
-}
-
-function setGateMode(register) {
-  const loginTab = document.getElementById("gate-login-tab");
-  const registerTab = document.getElementById("gate-register-tab");
-  const nameWrap = document.getElementById("gate-name-wrap");
-  const password = document.getElementById("gate-password");
-  const submit = document.getElementById("gate-submit");
-  loginTab.setAttribute("aria-selected", register ? "false" : "true");
-  registerTab.setAttribute("aria-selected", register ? "true" : "false");
-  nameWrap.hidden = !register;
-  document.getElementById("gate-name").required = register;
-  password.autocomplete = register ? "new-password" : "current-password";
-  submit.textContent = register ? "Crear cuenta" : "Entrar";
-}
-
-function gateError(text) {
-  const node = document.getElementById("gate-error");
-  if (!text) {
-    node.hidden = true;
-    node.textContent = "";
-    return;
-  }
-  node.hidden = false;
-  node.textContent = text;
-}
-
-async function bootAuth() {
-  try {
-    const me = await authApi("/api/auth/me");
-    if (me.user) {
-      enterAccount(me.user, me.data);
-      return;
-    }
-    if (state.account) clearLocalUser();
-    showGate();
-  } catch {
-    if (state.account && state.account.email) {
-      if (profileReady(state.profile)) {
-        finishLogin();
-        toast("Sin conexión. Mostramos lo último de este teléfono.");
-      } else showFichaGate();
-      return;
-    }
-    showGate();
-  }
 }
 
 function pickButtons(name, options, current, onpick) {
@@ -482,7 +249,6 @@ function pickButtons(name, options, current, onpick) {
 function identityCard(opts) {
   const compact = Boolean(opts && opts.compact);
   const p = defaultProfile(state.profile);
-  const account = state.account || {};
   const rol = roleLabel(p.rol);
   const chips = [
     p.rol === "jugador" ? "Jugador/a" : "",
@@ -498,10 +264,9 @@ function identityCard(opts) {
     onclick: compact ? openAccount : undefined,
   }, [
     el("div", { class: "id-top" }, [
-      el("span", { class: "id-avatar" }, initialOf(account.nombre)),
+      el("span", { class: "id-avatar" }, initialOf(p.nombre)),
       el("div", { class: "id-who" }, [
-        el("strong", {}, account.nombre || "Jugador"),
-        el("span", {}, account.email || ""),
+        el("strong", {}, p.nombre || "Jugador"),
       ]),
       rol ? el("span", { class: "id-badge" }, rol) : null,
     ]),
@@ -513,7 +278,6 @@ function identityCard(opts) {
 function playerCard(profile, opts) {
   const compact = Boolean(opts && opts.compact);
   const p = defaultProfile(profile);
-  const account = state.account || {};
   const media = mediaOf(p.stats);
   const order = rankedStats(p.stats);
   const high = order.slice(0, 2);
@@ -530,7 +294,7 @@ function playerCard(profile, opts) {
             el("p", { class: "player-club" }, "Carrasco Polo"),
           ]),
         ]),
-        el("h2", { class: "player-name" }, account.nombre || "Jugador"),
+        el("h2", { class: "player-name" }, p.nombre || "Jugador"),
         meta ? el("p", { class: "player-meta" }, meta) : null,
       ]),
       el("div", { class: "media-box" }, [
@@ -556,10 +320,6 @@ function playerCard(profile, opts) {
 }
 
 function openAccount() {
-  if (!state.account) {
-    showGate();
-    return;
-  }
   if (!profileReady(state.profile)) {
     showFichaGate();
     return;
@@ -579,7 +339,6 @@ function viewCuenta() {
     ready ? playerCard(state.profile) : el("p", { class: "lead" }, "Falta armar tu ficha."),
     el("div", { class: "sheet-actions" }, [
       el("button", { class: "btn ghost", type: "button", onclick: showFichaGate }, ready ? "Editar ficha" : "Armar ficha"),
-      el("button", { class: "btn ghost", type: "button", onclick: logoutAccount }, "Cerrar sesión"),
     ]),
   ];
   return nodes.filter(Boolean);
@@ -589,7 +348,6 @@ function renderFicha() {
   const box = document.getElementById("gate-ficha");
   if (!box) return;
   const p = defaultProfile(state.profile);
-  const editing = profileReady(p);
   if (fichaStep === 2) {
     box.replaceChildren(
       el("p", { class: "gate-kicker" }, "Carrasco Polo Club"),
@@ -636,7 +394,18 @@ function renderFicha() {
   box.replaceChildren(
     el("p", { class: "gate-kicker" }, "Carrasco Polo Club"),
     el("h1", {}, "Tu ficha"),
-    el("p", { class: "gate-copy" }, "Así te van a ver en la sala. Nombre, mail y club ya están."),
+    el("p", { class: "gate-copy" }, "Así te van a ver en la sala."),
+    el("label", { class: "gate-field" }, [
+      el("span", {}, "Nombre"),
+      el("input", {
+        id: "ficha-nombre",
+        type: "text",
+        maxlength: "40",
+        autocomplete: "name",
+        placeholder: "Tu nombre",
+        value: p.nombre || "",
+      }),
+    ]),
     el("p", { class: "gate-label" }, "En el club sos"),
     pickButtons("Rol", ROLES, p.rol, (id) => {
       stashFichaBio();
@@ -694,16 +463,17 @@ function renderFicha() {
     ]),
     el("p", { class: "gate-error", id: "ficha-error", hidden: true }),
     el("button", { type: "button", class: "btn primary", onclick: nextFicha }, "Siguiente"),
+    el("button", { type: "button", class: "btn ghost", onclick: closeFicha }, "Ahora no"),
   );
-  if (editing) box.append(el("button", { type: "button", class: "btn ghost", onclick: finishLogin }, "Ahora no"));
 }
 
 function readFichaBio() {
+  const nombre = String((document.getElementById("ficha-nombre") && document.getElementById("ficha-nombre").value) || "").replace(/\s+/g, " ").trim();
   const edad = clampNum(document.getElementById("ficha-edad") && document.getElementById("ficha-edad").value, 6, 80);
   const altura = clampNum(document.getElementById("ficha-altura") && document.getElementById("ficha-altura").value, 120, 220);
   const peso = clampNum(document.getElementById("ficha-peso") && document.getElementById("ficha-peso").value, 30, 180);
   const ciudad = String((document.getElementById("ficha-ciudad") && document.getElementById("ficha-ciudad").value) || "").replace(/\s+/g, " ").trim();
-  state.profile = defaultProfile(Object.assign({}, state.profile, { edad, altura, peso, ciudad }));
+  state.profile = defaultProfile(Object.assign({}, state.profile, { nombre, edad, altura, peso, ciudad }));
   return state.profile;
 }
 
@@ -726,6 +496,7 @@ function fichaMessage(text) {
 
 function nextFicha() {
   readFichaBio();
+  if (!state.profile.nombre || state.profile.nombre.length < 2) return fichaMessage("Poné tu nombre.");
   if (!state.profile.rol) return fichaMessage("Elegí si sos jugador, hincha o cuerpo técnico.");
   if (state.profile.rol === "jugador" && !state.profile.posicion) return fichaMessage("Elegí tu posición.");
   if (!state.profile.edad) return fichaMessage("Poné tu edad.");
@@ -746,7 +517,7 @@ function saveFicha() {
     return;
   }
   save(KEYS.profile, state.profile);
-  finishLogin();
+  closeFicha();
   state.tab = "cuenta";
   render({ resetScroll: true, morphTabs: true });
   toast("Ficha lista.");
@@ -1927,46 +1698,6 @@ fileInput.addEventListener("change", () => {
 const accountBtn = document.getElementById("account-btn");
 if (accountBtn) accountBtn.addEventListener("click", openAccount);
 
-const gateForm = document.getElementById("gate-form");
-const gateLoginTab = document.getElementById("gate-login-tab");
-const gateRegisterTab = document.getElementById("gate-register-tab");
-if (gateLoginTab) gateLoginTab.addEventListener("click", () => { gateError(""); setGateMode(false); });
-if (gateRegisterTab) gateRegisterTab.addEventListener("click", () => { gateError(""); setGateMode(true); });
-if (gateForm) {
-  gateForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const register = document.getElementById("gate-register-tab").getAttribute("aria-selected") === "true";
-    const submit = document.getElementById("gate-submit");
-    const payload = {
-      nombre: document.getElementById("gate-name").value,
-      email: document.getElementById("gate-email").value,
-      password: document.getElementById("gate-password").value,
-    };
-    gateError("");
-    submit.disabled = true;
-    const previous = submit.textContent;
-    submit.textContent = "Un segundo…";
-    try {
-      const path = register ? "/api/auth/register" : "/api/auth/login";
-      const result = await authApi(path, { method: "POST", body: JSON.stringify(payload) });
-      enterAccount(result.user, result.data);
-      document.getElementById("gate-password").value = "";
-      if (app.classList.contains("gated")) toast("Cuenta lista. Ahora armá tu ficha.");
-      else toast(register ? "Cuenta lista. Ya estás adentro." : "Hola " + (result.user.nombre || "") + ".");
-    } catch (error) {
-      gateError(humanError(error, "No pude entrar."));
-    } finally {
-      submit.disabled = false;
-      submit.textContent = previous;
-    }
-  });
-}
-
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") pushCloud();
-});
-window.addEventListener("pagehide", () => { pushCloud(); });
-
 importBtn.addEventListener("click", () => fileInput.click());
 
 for (const button of document.querySelectorAll(".tab[data-tab]")) {
@@ -2059,7 +1790,7 @@ async function boot() {
       if (id === "m15") state.loadError = "No pude cargar la planilla de M15.";
     }
   }));
-  await Promise.all([bootAuth(), builtins]);
+  await builtins;
   state.ready = true;
   if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
   ensureCycle();

@@ -44,17 +44,6 @@ La clave no va al teléfono.
 
 El modelo es `grok-4.7`.
 
-## Cuentas
+## Perfil
 
-La app pide login o registro. Cada cuenta queda en un Excel (`Cuentas` + `Datos`): mail, nombre, clave hasheada y el snapshot de la rutina (categoría, series, kilos, avisos, chat).
-
-En esta compu el archivo es `data/cuentas.xlsx`. En Vercel el disco se borra entre deploys, así que el mismo Excel vive en [Vercel Blob](https://vercel.com/docs/vercel-blob). Con eso entras desde cualquier teléfono y siguen los datos.
-
-1. En Vercel creá un Blob Store (privado) y conectalo al proyecto.
-2. Marcá que agregue `BLOB_READ_WRITE_TOKEN`.
-3. En Environment Variables poné también `SESSION_SECRET` (una frase larga, 16 caracteres o más).
-4. Redeploy.
-
-En local, copiá `.env.example` a `.env` y opcionalmente las mismas claves. Sin Blob, las cuentas quedan en `data/cuentas.xlsx` de esta máquina.
-
-La clave nunca se guarda en texto plano. La sesión es una cookie `httpOnly` de 30 días.
+En la pestaña Perfil se arma la ficha (nombre, posición, edad, altura, peso y stats). Queda guardada en este teléfono.
