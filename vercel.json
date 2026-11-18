@@ -10,6 +10,14 @@
     "api/[...path].js": {
       "includeFiles": "{public,lib}/**",
       "maxDuration": 15
+    },
+    "api/auth/[action].js": {
+      "includeFiles": "{public,lib}/**",
+      "maxDuration": 15
+    },
+    "api/notifications/[action].js": {
+      "includeFiles": "{public,lib}/**",
+      "maxDuration": 15
     }
   }
 }

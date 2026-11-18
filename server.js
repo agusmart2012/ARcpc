@@ -129,6 +129,16 @@ function requestUrl(req) {
       return new URL("/api/" + String(slug).replace(/^\/+/, ""), host);
     }
   }
+  const action = incoming.searchParams.get("action");
+  if (action && /^[a-z]+$/.test(action)) {
+    const base = incoming.pathname.replace(/\/+$/, "") || "/";
+    if (base === "/api/auth" || base === "/api/auth/[action]") {
+      return new URL("/api/auth/" + action, host);
+    }
+    if (base === "/api/notifications" || base === "/api/notifications/[action]") {
+      return new URL("/api/notifications/" + action, host);
+    }
+  }
   return incoming;
 }
 

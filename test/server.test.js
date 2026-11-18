@@ -104,6 +104,15 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     });
     assert.equal(forwardedHealth.status, 200);
     assert.equal(forwardedHealth.json.ok, true);
+
+    const actionLogin = await request(server, {
+      method: "POST",
+      path: "/api/auth?action=login",
+      body: Buffer.from(JSON.stringify({ email: "lu@cpc.uy", password: "clave123" })),
+      headers: { "Content-Type": "application/json" },
+    });
+    assert.equal(actionLogin.status, 401);
+    assert.match(actionLogin.json.message, /Mail o clave/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
