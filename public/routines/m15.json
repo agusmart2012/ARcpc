@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "sourceName": "P3 Temp (M15)",
+  "sourceName": "Post-Temp A (M15)",
   "category": "m15",
-  "week": "16-20",
-  "period": "Competitivo",
+  "week": "47-50",
+  "period": "Postemporada A",
   "tempo": "Tempo controlado: 2-3 segundos en la fase excéntrica y explosivo en la concéntrica.",
-  "notice": "Prestá atención a Observaciones: además de los videos, ahí está cómo se hace cada ejercicio. Respetá las cargas y los porcentajes de la planilla.",
+  "notice": "Prestá atención a Observaciones: además de los videos, ahí está cómo se hace cada ejercicio. Respetá las cargas y los porcentajes de la planilla para una correcta adaptación a los próximos periodos.",
   "tips": [
     {
       "label": "Progresión",
@@ -78,6 +78,13 @@
               "reps": "5",
               "check": true,
               "videos": [{ "url": "https://vimeo.com/518810757" }]
+            },
+            {
+              "id": "m15/d1/scorpion",
+              "name": "Scorpion",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://www.youtube.com/shorts/_1Wxep53hG0" }]
             }
           ]
         },
@@ -85,23 +92,22 @@
           "title": "Zona media",
           "exercises": [
             {
-              "id": "m15/d1/crunch",
-              "name": "Crunch cable c/cuerda",
-              "sets": 3,
-              "reps": "15",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/1DpnrOWv1A4" }]
+              "id": "m15/d1/good-morning",
+              "name": "Good Moning c/barra",
+              "sets": 2,
+              "reps": "10",
+              "rest": "Pausa 30\""
             },
             {
               "id": "m15/d1/plancha-fwd",
               "name": "Plancha c/disco · Forwards",
-              "sets": 2,
-              "reps": "2'"
+              "sets": 1,
+              "reps": "90\" - 120\""
             },
             {
               "id": "m15/d1/plancha-back",
               "name": "Plancha c/disco · Backs",
-              "sets": 3,
+              "sets": 2,
               "reps": "60\"",
               "rest": "Pausa 60\""
             }
@@ -111,37 +117,44 @@
           "title": "Parte central",
           "exercises": [
             {
-              "id": "m15/d1/sentadilla",
-              "name": "Sentadilla Atras c/barra + Multisaltos en \"L\"",
+              "id": "m15/d1/pecho-plano",
+              "name": "Pecho Plano c/barra",
               "sets": 4,
-              "reps": "4 - 5",
-              "intensity": "85%",
-              "rest": "Pausa 2'–3'",
-              "notes": "Multisaltos en \"L\": 3 saltos verticales frontales + 1 salto vertical lateral (izq. o der.)."
+              "reps": "12",
+              "intensity": "65%",
+              "rest": "Pausa 90\"",
+              "notes": "Pausa de 2\" en el pecho en cada reps."
             },
             {
-              "id": "m15/d1/press",
-              "name": "Press de Pecho Plano c/barra + Flexiones de Rechazo",
+              "id": "m15/d1/press-inclinado",
+              "name": "Press de Pecho Inclinado c/DB",
               "sets": 4,
-              "reps": "4 - 5 + 3",
-              "intensity": "75% - 80%",
-              "rest": "Pausa 2'"
+              "reps": "12",
+              "rest": "Pausa 90\"",
+              "notes": "Tempo: descenso en 3\", empuje en 1\"."
             },
             {
-              "id": "m15/d1/dominadas",
-              "name": "Dominadas c/lastre",
-              "sets": 4,
-              "reps": "6",
-              "intensity": "85%",
-              "rest": "Pausa 2'–3'"
-            },
-            {
-              "id": "m15/d1/ytw",
-              "name": "Vuelos YTW en banco Inclinado + Cuello c/banda",
+              "id": "m15/d1/aperturas",
+              "name": "Aperturas en Peck Deck",
               "sets": 3,
-              "reps": "10 + 30\"",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/731XdU3GxXk" }]
+              "reps": "12",
+              "rest": "Pausa 90\"",
+              "notes": "Tempo: descenso en 3\", empuje en 1\"."
+            },
+            {
+              "id": "m15/d1/press-unilateral",
+              "name": "Press Pecho Plano Unilateral c/DB + Flexiones de rechazo",
+              "sets": 4,
+              "reps": "12 + AMRAP",
+              "rest": "Pausa 90\"",
+              "notes": "Mientras 1 brazo mantiene contraído el pecho, el otro realiza las reps."
+            },
+            {
+              "id": "m15/d1/triceps",
+              "name": "Press Fracnes + Jalones Unilarerales en Polea alta + Fondos en Triceps",
+              "sets": 3,
+              "reps": "12 + 10 c/l + AMRAP",
+              "rest": "Pausa 90\""
             }
           ]
         },
@@ -210,27 +223,17 @@
           "title": "Zona media",
           "exercises": [
             {
-              "id": "m15/d2/hollow",
-              "name": "Hollow",
-              "sets": 2,
-              "reps": "30\"",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/YRmzConjl8c" }]
-            },
-            {
-              "id": "m15/d2/pallof",
-              "name": "Press Pallof en polea + Dead Bug",
-              "sets": 3,
-              "reps": "12 c/l + 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=o_CxFP4FJhA" }]
-            },
-            {
-              "id": "m15/d2/copenhague",
-              "name": "Plancha Copenhage",
+              "id": "m15/d2/revolver",
+              "name": "Revolver la Olla en FitBall",
               "sets": 2,
               "reps": "30\" c/l",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=WxSv8CELY5k" }]
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m15/d2/plancha-2",
+              "name": "Plancha 2 apoyos",
+              "sets": 2,
+              "reps": "30\" c/l"
             }
           ]
         },
@@ -238,56 +241,44 @@
           "title": "Parte central",
           "exercises": [
             {
-              "id": "m15/d2/peso-muerto",
-              "name": "Peso Muerto c/barra Convencional",
+              "id": "m15/d2/sentadilla",
+              "name": "Sentadilla Atras c/barra",
               "sets": 4,
-              "reps": "4",
-              "intensity": "75% - 85%",
-              "rest": "Micropausa 2'–3'",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=1ZXobu7JvvE" }]
-            },
-            {
-              "id": "m15/d2/lunges",
-              "name": "Wallking Lunges c/DB + Multisaltos en cuadrado",
-              "sets": 4,
-              "reps": "15 + 3",
-              "intensity": "60\"",
+              "reps": "8",
+              "intensity": "70%",
               "rest": "Micropausa 90\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/OEfBLVJuoDw" }]
+              "notes": "Tempo: 3 - 2 - X - 0."
             },
             {
-              "id": "m15/d2/skipping",
-              "name": "*Skipping contra pared + *Saltos alternados en banco/cajón",
+              "id": "m15/d2/rumano",
+              "name": "Peso Muerto Rumano",
               "sets": 3,
-              "reps": "3 c/l + 8c/l",
-              "rest": "Micropausa 90\"",
-              "videos": [
-                { "label": "Saltos alternados en banco/cajón", "url": "https://www.youtube.com/watch?v=dMzBl97BuHk" },
-                { "label": "Skipping contra pared", "url": "https://www.youtube.com/shorts/jHWEpZZ9rfQ" }
-              ]
+              "reps": "8 - 10",
+              "intensity": "RIR 3",
+              "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d2/push-press",
-              "name": "Push Press",
-              "sets": 4,
-              "reps": "4",
-              "intensity": "85%",
-              "rest": "Micropausa 2'"
+              "id": "m15/d2/bulgara",
+              "name": "Sentadilla Bulgara",
+              "sets": 3,
+              "reps": "10 c/l",
+              "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d2/curl",
-              "name": "Curl de Biceps barra \"Z\"",
+              "id": "m15/d2/camilla",
+              "name": "Camilla Femoral Sentado",
               "sets": 3,
               "reps": "12",
-              "rest": "Micropausa 60\""
+              "intensity": "50%",
+              "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d2/farmer",
-              "name": "Farmer Walk Carry",
+              "id": "m15/d2/gemelo",
+              "name": "Extensiones de Gemelo Parado c/DB",
               "sets": 3,
-              "reps": "20mts.",
-              "rest": "Micropausa 60\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/yeV8nEy9nGc" }]
+              "reps": "12 - 15",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/watch?v=c5Kv6-fnTj8" }]
             }
           ]
         },
@@ -307,9 +298,9 @@
       ]
     },
     {
-      "key": "w3:miercoles",
-      "weekday": 3,
-      "label": "Miércoles",
+      "key": "w4:jueves",
+      "weekday": 4,
+      "label": "Jueves",
       "session": "Día 3",
       "blocks": [
         {
@@ -323,32 +314,25 @@
           "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
           "exercises": [
             {
-              "id": "m15/d3/prisoner",
-              "name": "Prisoner Good Morning",
-              "reps": "10",
+              "id": "m15/d3/kneeling",
+              "name": "Kneeling Glute Stretch",
+              "reps": "2×10\"",
               "check": true,
-              "videos": [{ "url": "https://vimeo.com/451668364" }]
+              "videos": [{ "url": "https://vimeo.com/543301049" }]
             },
             {
               "id": "m15/d3/adductor",
               "name": "Adductor Stretch",
-              "reps": "2×10",
+              "reps": "3×10\"",
               "check": true,
               "videos": [{ "url": "https://vimeo.com/502378687" }]
             },
             {
-              "id": "m15/d3/hip",
-              "name": "Hip Circles",
-              "reps": "5 c/l",
+              "id": "m15/d3/downward",
+              "name": "Downward Dog",
+              "reps": "5",
               "check": true,
-              "videos": [{ "url": "https://vimeo.com/449082043" }]
-            },
-            {
-              "id": "m15/d3/plate",
-              "name": "Plate Wraps",
-              "reps": "5 c/l",
-              "check": true,
-              "videos": [{ "url": "https://vimeo.com/449082004" }]
+              "videos": [{ "url": "https://vimeo.com/518810757" }]
             }
           ]
         },
@@ -356,24 +340,23 @@
           "title": "Zona media",
           "exercises": [
             {
-              "id": "m15/d3/bird",
-              "name": "Birg Dog",
-              "sets": 3,
-              "reps": "10 c/l",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=k2azbhhuKuM" }]
-            },
-            {
-              "id": "m15/d3/lateral-fwd",
-              "name": "Plancha Lateral · Forwards",
+              "id": "m15/d3/good-morning",
+              "name": "Good Moning c/barra",
               "sets": 2,
-              "reps": "50\" c/l"
+              "reps": "10",
+              "rest": "Pausa 30\""
             },
             {
-              "id": "m15/d3/lateral-back",
-              "name": "Plancha Lateral · Backs",
-              "sets": 3,
-              "reps": "30\" c/l",
+              "id": "m15/d3/plancha-fwd",
+              "name": "Plancha c/disco · Forwards",
+              "sets": 1,
+              "reps": "90\" - 120\""
+            },
+            {
+              "id": "m15/d3/plancha-back",
+              "name": "Plancha c/disco · Backs",
+              "sets": 2,
+              "reps": "60\"",
               "rest": "Pausa 60\""
             }
           ]
@@ -382,48 +365,56 @@
           "title": "Parte central",
           "exercises": [
             {
-              "id": "m15/d3/oh",
-              "name": "Sentailla en OH",
+              "id": "m15/d3/dominadas",
+              "name": "Dominadas (toma supina)",
               "sets": 4,
-              "reps": "3",
-              "intensity": "20% - 30%",
-              "rest": "Micropausa 2'",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=pn8mqlG0nkE" }]
+              "reps": "8 - 10",
+              "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d3/camilla",
-              "name": "Camilla de Cuadriceps + Camilla Flexora Sentado",
-              "sets": 3,
-              "reps": "15 + 15",
-              "intensity": "RIR 2",
-              "rest": "Micropausa 2'"
-            },
-            {
-              "id": "m15/d3/comando",
-              "name": "Dominadas Comando + Pull Over c/DB",
+              "id": "m15/d3/remo",
+              "name": "Remo Tumbado",
               "sets": 4,
-              "reps": "3 c/l + 12",
+              "reps": "8",
+              "intensity": "RIR 2 - 3",
               "rest": "Micropausa 90\""
             },
             {
               "id": "m15/d3/serrucho",
-              "name": "Serrucho (en posición de carrera alta) + Jalones c/banda lucha",
-              "sets": 4,
-              "reps": "8 c/l + 6\"",
-              "rest": "Micropausa 90\""
-            },
-            {
-              "id": "m15/d3/curl-prono",
-              "name": "Curl de Biceps (toma Prona) + Jalones Polea alta Triceps Soga",
+              "name": "Serrucho c/DB (apoyo en banco)",
               "sets": 3,
-              "reps": "12 + 12",
+              "reps": "10 c/l",
+              "intensity": "RIR 2 - 3",
               "rest": "Micropausa 60\""
             },
             {
-              "id": "m15/d3/trapecio",
-              "name": "Trapecio c/DB + Cuello c/banda",
+              "id": "m15/d3/press-hombro",
+              "name": "Press de Hombro c/DB",
+              "sets": 4,
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 60\""
+            },
+            {
+              "id": "m15/d3/vuelos",
+              "name": "Vuelo Unilateral en banco Inclinado + Vuelo Frontal c/disco (agarre de dedos)",
               "sets": 3,
-              "reps": "15 + 30\"",
+              "reps": "8 - 10 c/l + 12",
+              "intensity": "RIR 2 - 3"
+            },
+            {
+              "id": "m15/d3/curl",
+              "name": "Curl de Biceps c/barra + Martillo c/DB Alternado + ISO c/barra",
+              "sets": 3,
+              "reps": "12 + 8 - 10 c/l + 20\"",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m15/d3/cuello",
+              "name": "Flexiones de Cuello c/arnes + ISO Cuello c/banda",
+              "sets": 3,
+              "reps": "12 + 30\" c/l",
               "rest": "Micropausa 60\""
             }
           ]
@@ -444,9 +435,9 @@
       ]
     },
     {
-      "key": "w4:jueves",
-      "weekday": 4,
-      "label": "Jueves",
+      "key": "w5:viernes",
+      "weekday": 5,
+      "label": "Viernes",
       "session": "Día 4",
       "blocks": [
         {
@@ -460,25 +451,32 @@
           "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
           "exercises": [
             {
-              "id": "m15/d4/kneeling",
-              "name": "Kneeling Glute Stretch",
-              "reps": "2×10\"",
+              "id": "m15/d4/prisoner",
+              "name": "Prisoner Good Morning",
+              "reps": "10",
               "check": true,
-              "videos": [{ "url": "https://vimeo.com/543301049" }]
+              "videos": [{ "url": "https://vimeo.com/451668364" }]
             },
             {
               "id": "m15/d4/adductor",
               "name": "Adductor Stretch",
-              "reps": "3×10\"",
+              "reps": "2×10",
               "check": true,
               "videos": [{ "url": "https://vimeo.com/502378687" }]
             },
             {
-              "id": "m15/d4/downward",
-              "name": "Downward Dog",
-              "reps": "5",
+              "id": "m15/d4/hip",
+              "name": "Hip Circles",
+              "reps": "5 c/l",
               "check": true,
-              "videos": [{ "url": "https://vimeo.com/518810757" }]
+              "videos": [{ "url": "https://vimeo.com/449082043" }]
+            },
+            {
+              "id": "m15/d4/plate",
+              "name": "Plate Wraps",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/449082004" }]
             }
           ]
         },
@@ -486,27 +484,17 @@
           "title": "Zona media",
           "exercises": [
             {
-              "id": "m15/d4/hollow",
-              "name": "Hollow",
-              "sets": 2,
-              "reps": "30\"",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/YRmzConjl8c" }]
-            },
-            {
-              "id": "m15/d4/pallof",
-              "name": "Press Pallof en polea + Dead Bug",
-              "sets": 3,
-              "reps": "12 c/l + 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=o_CxFP4FJhA" }]
-            },
-            {
-              "id": "m15/d4/copenhague",
-              "name": "Plancha Copenhage",
+              "id": "m15/d4/revolver",
+              "name": "Revolver la Olla en FitBall",
               "sets": 2,
               "reps": "30\" c/l",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=WxSv8CELY5k" }]
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m15/d4/plancha-2",
+              "name": "Plancha 2 apoyos",
+              "sets": 2,
+              "reps": "30\" c/l"
             }
           ]
         },
@@ -514,52 +502,52 @@
           "title": "Parte central",
           "exercises": [
             {
-              "id": "m15/d4/frontal",
-              "name": "Sentadilla Frontal c/barra",
+              "id": "m15/d4/hip-thrust",
+              "name": "Hip-Thrust",
               "sets": 4,
-              "reps": "6",
+              "reps": "8 - 10",
               "intensity": "75%",
-              "rest": "Micropausa 2'–3'",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=LMuyiedwees" }]
+              "rest": "Micropausa 2 min."
             },
             {
-              "id": "m15/d4/prensa",
-              "name": "Prensa",
+              "id": "m15/d4/frontal",
+              "name": "Sentadilla Frontal",
+              "sets": 4,
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 2 min."
+            },
+            {
+              "id": "m15/d4/step-up",
+              "name": "Step Up c/DB",
               "sets": 3,
-              "reps": "20",
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
               "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d4/militar",
-              "name": "Press Militar (Shouder Press)",
-              "sets": 4,
-              "reps": "5",
-              "intensity": "85%",
-              "rest": "Micropausa 2'–3'",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=5yWaNOvgFCM" }]
+              "id": "m15/d4/unilateral",
+              "name": "Peso Muerto Unilateral c/DB",
+              "sets": 3,
+              "reps": "8 c/l",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
             },
             {
-              "id": "m15/d4/vuelos",
-              "name": "Vuelos Laterales c/DB + Vuelos Fronales c/disco (punta de dedos)",
-              "sets": 3,
-              "reps": "12 + 12",
-              "intensity": "RIR 1",
-              "rest": "Micropausa 2'"
+              "id": "m15/d4/nordico",
+              "name": "Curl Nordico Asitido",
+              "sets": 2,
+              "reps": "4 - 6",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/shorts/o40Zd3WRbxg" }]
             },
             {
-              "id": "m15/d4/frances",
-              "name": "Press Frances c/barra",
+              "id": "m15/d4/gemelo",
+              "name": "Extensiones de Gemelo Parado c/DB",
               "sets": 3,
-              "reps": "12",
-              "rest": "Micropausa 60\""
-            },
-            {
-              "id": "m15/d4/farmer",
-              "name": "Farmer Walk Carry OH",
-              "sets": 3,
-              "reps": "20mts.",
-              "rest": "Micropausa 60\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/yeV8nEy9nGc" }]
+              "reps": "12 - 15",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/watch?v=c5Kv6-fnTj8" }]
             }
           ]
         },
@@ -574,144 +562,6 @@
               "check": true
             },
             { "id": "m15/d4/estiramiento", "name": "Estiramiento", "check": true }
-          ]
-        }
-      ]
-    },
-    {
-      "key": "w5:viernes",
-      "weekday": 5,
-      "label": "Viernes",
-      "session": "Día 5",
-      "blocks": [
-        {
-          "title": "",
-          "exercises": [
-            { "id": "m15/d5/foam", "name": "Foam Roller", "check": true }
-          ]
-        },
-        {
-          "title": "Elongación dinámica",
-          "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
-          "exercises": [
-            {
-              "id": "m15/d5/prisoner",
-              "name": "Prisoner Good Morning",
-              "reps": "10",
-              "check": true,
-              "videos": [{ "url": "https://vimeo.com/451668364" }]
-            },
-            {
-              "id": "m15/d5/adductor",
-              "name": "Adductor Stretch",
-              "reps": "2×10",
-              "check": true,
-              "videos": [{ "url": "https://vimeo.com/502378687" }]
-            },
-            {
-              "id": "m15/d5/hip",
-              "name": "Hip Circles",
-              "reps": "5 c/l",
-              "check": true,
-              "videos": [{ "url": "https://vimeo.com/449082043" }]
-            },
-            {
-              "id": "m15/d5/plate",
-              "name": "Plate Wraps",
-              "reps": "5 c/l",
-              "check": true,
-              "videos": [{ "url": "https://vimeo.com/449082004" }]
-            }
-          ]
-        },
-        {
-          "title": "Zona media",
-          "exercises": [
-            {
-              "id": "m15/d5/bird",
-              "name": "Birg Dog",
-              "sets": 3,
-              "reps": "10 c/l",
-              "rest": "Pausa 30\"",
-              "videos": [{ "url": "https://www.youtube.com/watch?v=k2azbhhuKuM" }]
-            },
-            {
-              "id": "m15/d5/lateral-fwd",
-              "name": "Plancha Lateral · Forwards",
-              "sets": 2,
-              "reps": "50\" c/l"
-            },
-            {
-              "id": "m15/d5/lateral-back",
-              "name": "Plancha Lateral · Backs",
-              "sets": 3,
-              "reps": "30\" c/l",
-              "rest": "Pausa 60\""
-            }
-          ]
-        },
-        {
-          "title": "Parte central",
-          "exercises": [
-            {
-              "id": "m15/d5/remo",
-              "name": "Remo Tumbado",
-              "sets": 4,
-              "reps": "6",
-              "intensity": "75%",
-              "rest": "Micropausa 2'–3'"
-            },
-            {
-              "id": "m15/d5/jalones",
-              "name": "Jalones Polea Alta (espalda) toma supina",
-              "sets": 3,
-              "reps": "12",
-              "rest": "Micropausa 90\""
-            },
-            {
-              "id": "m15/d5/posteriores",
-              "name": "Vuelos Posteriores + Face Pull c/TRX",
-              "sets": 3,
-              "reps": "8 + 15",
-              "intensity": "85%",
-              "rest": "Micropausa 2'"
-            },
-            {
-              "id": "m15/d5/rodilla",
-              "name": "Press Militar de rodilla c/DB + Halo c/disco",
-              "sets": 3,
-              "reps": "8 + 5 c/l",
-              "intensity": "RIR 1",
-              "rest": "Micropausa 2'"
-            },
-            {
-              "id": "m15/d5/curl",
-              "name": "Curl de Biceps Compañero",
-              "sets": 3,
-              "reps": "12",
-              "rest": "Micropausa 60\""
-            },
-            {
-              "id": "m15/d5/cuello",
-              "name": "Flexiones de Cuello c/disco en banco plano",
-              "sets": 3,
-              "reps": "15",
-              "rest": "Micropausa 60\"",
-              "videos": [{ "url": "https://www.youtube.com/shorts/yeV8nEy9nGc" }]
-            }
-          ]
-        },
-        {
-          "title": "Parte final",
-          "exercises": [
-            {
-              "id": "m15/d5/regen",
-              "name": "Regenerativo",
-              "reps": "10 o 15 min",
-              "notes": "Bicicleta, caminador, etc.",
-              "check": true
-            },
-            { "id": "m15/d5/estiramiento", "name": "Estiramiento", "check": true }
           ]
         }
       ]

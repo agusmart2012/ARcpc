@@ -1,6 +1,6 @@
 # Sala de Alto Rendimiento · Carrasco Polo Club
 
-Rutina de rugby de la sala de alto rendimiento. Hay una pestaña por categoría: M13, M15, M17, M19, PRE-INTER, INTER y PRIMERA. M15 ya trae la planilla de la semana 16-20, día por día. En el teléfono se marcan las series y se abren los videos de la planilla. El coach responde con Grok, si hay una clave de xAI en esta compu.
+Rutina de rugby de la sala de alto rendimiento. Hay una pestaña por categoría: M13, M15, M17, M19, PRE-INTER, INTER y PRIMERA. M15 ya trae la planilla Post-Temp A de la semana 47-50, día por día. En el teléfono se marcan las series y se abren los videos de la planilla. El coach responde con Grok, si hay una clave de xAI en esta compu.
 
 ## Arrancar
 
@@ -43,3 +43,18 @@ La clave no va al teléfono.
 4. Reiniciá la app
 
 El modelo es `grok-4.7`.
+
+## Cuentas
+
+La app pide login o registro. Cada cuenta queda en un Excel (`Cuentas` + `Datos`): mail, nombre, clave hasheada y el snapshot de la rutina (categoría, series, kilos, avisos, chat).
+
+En esta compu el archivo es `data/cuentas.xlsx`. En Vercel el disco se borra entre deploys, así que el mismo Excel vive en [Vercel Blob](https://vercel.com/docs/vercel-blob). Con eso entras desde cualquier teléfono y siguen los datos.
+
+1. En Vercel creá un Blob Store (privado) y conectalo al proyecto.
+2. Marcá que agregue `BLOB_READ_WRITE_TOKEN`.
+3. En Environment Variables poné también `SESSION_SECRET` (una frase larga, 16 caracteres o más).
+4. Redeploy.
+
+En local, copiá `.env.example` a `.env` y opcionalmente las mismas claves. Sin Blob, las cuentas quedan en `data/cuentas.xlsx` de esta máquina.
+
+La clave nunca se guarda en texto plano. La sesión es una cookie `httpOnly` de 30 días.

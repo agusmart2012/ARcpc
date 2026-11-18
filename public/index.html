@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="theme-color" content="#0c1016">
+  <meta name="theme-color" content="#07080d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Sala de Alto Rendimiento">
+  <meta name="apple-mobile-web-app-title" content="Sala AR">
+  <meta name="format-detection" content="telephone=no">
   <meta name="description" content="Rutina de rugby de la sala de alto rendimiento del Carrasco Polo Club.">
   <title>Sala de Alto Rendimiento · Carrasco Polo Club</title>
   <link rel="icon" href="/crest.png" type="image/png">
@@ -18,60 +19,101 @@
 <body>
   <div class="stage">
     <div class="device">
-      <p class="stage-label">Vista iPhone 13</p>
+      <p class="stage-label">iPhone 17 Pro</p>
       <div class="phone" id="phone">
-        <div class="app" id="app">
-          <header class="top">
-            <div class="brand">
-              <img class="crest" src="/crest.png" alt="Escudo del Carrasco Polo Club" width="34" height="38">
-              <span class="brand-name">Sala de<br>Alto Rendimiento</span>
+        <div class="island" aria-hidden="true"><i></i></div>
+        <div class="status" aria-hidden="true">
+          <span id="status-time">9:41</span>
+          <span class="status-end">
+            <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M1 8.5h1.6V11H1zM4.2 6.5h1.6V11H4.2zM7.4 4.2h1.6V11H7.4zM10.6 2h1.6v9h-1.6z"></path><path d="M14.2 4.4c.9.8.9 2.4 0 3.2" fill="none"></path></svg>
+            <svg viewBox="0 0 16 12" aria-hidden="true"><path d="M8 9.6A3.6 3.6 0 0 1 5.2 3.8L4 2.6A5.4 5.4 0 0 0 8 11a5.4 5.4 0 0 0 4-1.6L10.8 8.2A3.6 3.6 0 0 1 8 9.6Z"></path><circle cx="8" cy="3.2" r="1.15"></circle></svg>
+            <span class="battery"><b></b></span>
+          </span>
+        </div>
+        <div class="app gated" id="app">
+          <div class="ambient" aria-hidden="true">
+            <img class="ambient-crest" src="/crest.png" alt="">
+          </div>
+          <div id="gate" class="gate">
+            <div id="gate-auth" class="gate-card glass">
+              <img class="gate-crest" src="/crest.png" alt="Escudo del Carrasco Polo Club" width="54" height="60">
+              <p class="gate-kicker">Carrasco Polo Club</p>
+              <h1>Sala de Alto Rendimiento</h1>
+              <p class="gate-copy">Creá tu cuenta y las series viajan con vos. Entras desde cualquier teléfono y sigue todo guardado.</p>
+              <div class="gate-modes" role="tablist" aria-label="Cuenta">
+                <button type="button" class="gate-mode" id="gate-login-tab" aria-selected="true">Entrar</button>
+                <button type="button" class="gate-mode" id="gate-register-tab" aria-selected="false">Crear cuenta</button>
+              </div>
+              <form id="gate-form">
+                <label class="gate-field" id="gate-name-wrap" hidden>
+                  <span>Nombre</span>
+                  <input id="gate-name" name="nombre" autocomplete="name" maxlength="40" placeholder="Tu nombre">
+                </label>
+                <label class="gate-field">
+                  <span>Mail</span>
+                  <input id="gate-email" name="email" type="email" autocomplete="username" inputmode="email" required maxlength="120" placeholder="tu@mail.com">
+                </label>
+                <label class="gate-field">
+                  <span>Clave</span>
+                  <input id="gate-password" name="password" type="password" autocomplete="current-password" required minlength="6" maxlength="72" placeholder="6 caracteres o más">
+                </label>
+                <p class="gate-error" id="gate-error" hidden></p>
+                <button type="submit" class="btn primary" id="gate-submit">Entrar</button>
+              </form>
             </div>
-            <button type="button" class="icon-btn" id="import-btn" aria-label="Subir planilla de esta categoría">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14M5 12h14"></path>
-              </svg>
-            </button>
+            <div id="gate-ficha" class="gate-card glass" hidden></div>
+          </div>
+          <header class="chrome">
+            <div class="top">
+              <button type="button" class="brand glass" id="account-btn" aria-label="Tu cuenta">
+                <img class="crest" src="/crest.png" alt="" width="34" height="38">
+                <span class="brand-name">Sala de<br>Alto Rendimiento</span>
+              </button>
+              <button type="button" class="icon-btn glass" id="import-btn" aria-label="Subir planilla de esta categoría">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+              </button>
+            </div>
+            <nav class="cats" id="cats" aria-label="Categorías">
+              <button type="button" class="cat" data-cat="m13">M13</button>
+              <button type="button" class="cat" data-cat="m15" aria-selected="true">M15</button>
+              <button type="button" class="cat" data-cat="m17">M17</button>
+              <button type="button" class="cat" data-cat="m19">M19</button>
+              <button type="button" class="cat" data-cat="pre-inter">PRE-INTER</button>
+              <button type="button" class="cat" data-cat="inter">INTER</button>
+              <button type="button" class="cat" data-cat="primera">PRIMERA</button>
+            </nav>
           </header>
-          <nav class="cats" id="cats" aria-label="Categorías">
-            <button type="button" class="cat" data-cat="m13">M13</button>
-            <button type="button" class="cat" data-cat="m15" aria-selected="true">M15</button>
-            <button type="button" class="cat" data-cat="m17">M17</button>
-            <button type="button" class="cat" data-cat="m19">M19</button>
-            <button type="button" class="cat" data-cat="pre-inter">PRE-INTER</button>
-            <button type="button" class="cat" data-cat="inter">INTER</button>
-            <button type="button" class="cat" data-cat="primera">PRIMERA</button>
-          </nav>
           <main id="main"></main>
-          <form id="composer" hidden>
-            <div id="chips"></div>
-            <div class="composer-row">
-              <label class="sr" for="coach-input">Mensaje para el coach</label>
-              <textarea id="coach-input" rows="1" maxlength="2000" placeholder="Preguntale por la rutina de hoy" enterkeyhint="send"></textarea>
-              <button type="submit" id="coach-send" aria-label="Enviar">↑</button>
+          <div class="dock">
+            <div class="tabs-shell glass" id="tabs-shell">
+              <span class="tab-blob" id="tab-blob" aria-hidden="true"></span>
+              <nav class="tabs" id="tabs" aria-label="Secciones">
+                <button type="button" class="tab" role="tab" data-tab="hoy" aria-selected="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 8v5l3 2"></path></svg>
+                  <span>Hoy</span>
+                </button>
+                <button type="button" class="tab" role="tab" data-tab="semana" aria-selected="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4M16 3v4M4 10h16"></path></svg>
+                  <span>Semana</span>
+                </button>
+                <button type="button" class="tab" role="tab" data-tab="avisos" aria-selected="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16h12l-1.2-2.2A6 6 0 0 1 16 9.5V9a4 4 0 0 0-8 0v.5a6 6 0 0 1-.8 4.3L6 16Z"></path><path d="M10 16a2 2 0 0 0 4 0"></path></svg>
+                  <span>Avisos</span>
+                </button>
+                <button type="button" class="tab" role="tab" data-tab="cuenta" aria-selected="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 19c.8-3.4 3.2-5.2 6.5-5.2s5.7 1.8 6.5 5.2"></path></svg>
+                  <span>Perfil</span>
+                </button>
+              </nav>
             </div>
-          </form>
-          <nav class="tabs" aria-label="Secciones">
-            <button type="button" class="tab" role="tab" data-tab="hoy" aria-selected="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 8v5l3 2"></path></svg>
-              Hoy
-            </button>
-            <button type="button" class="tab" role="tab" data-tab="semana" aria-selected="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4M16 3v4M4 10h16"></path></svg>
-              Semana
-            </button>
-            <button type="button" class="tab" role="tab" data-tab="avisos" aria-selected="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16h12l-1.2-2.2A6 6 0 0 1 16 9.5V9a4 4 0 0 0-8 0v.5a6 6 0 0 1-.8 4.3L6 16Z"></path><path d="M10 16a2 2 0 0 0 4 0"></path></svg>
-              Avisos
-            </button>
-            <button type="button" class="tab" role="tab" data-tab="coach" aria-selected="false">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5 4 20l4.2-1.4A8 8 0 1 0 6 16.5Z"></path></svg>
-              Coach
-            </button>
-          </nav>
+          </div>
         </div>
         <div id="overlay" class="overlay" hidden>
           <button type="button" class="backdrop" id="backdrop" aria-label="Cerrar"></button>
-          <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+          <div class="sheet glass" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+            <div class="grabber" aria-hidden="true"></div>
             <div class="sheet-head">
               <h2 id="sheet-title"></h2>
               <button type="button" id="sheet-close">Cerrar</button>
@@ -79,7 +121,8 @@
             <div id="sheet-body"></div>
           </div>
         </div>
-        <div id="toast" class="toast" hidden role="status"></div>
+        <div id="toast" class="toast glass" hidden role="status"></div>
+        <div class="home-bar" aria-hidden="true"></div>
       </div>
     </div>
   </div>

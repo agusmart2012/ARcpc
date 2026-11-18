@@ -51,11 +51,18 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     assert.match(html, /data-cat="m15"/);
     assert.match(html, /PRE-INTER/);
     assert.match(html, /viewport-fit=cover/);
+    assert.match(html, /id="gate"/);
+    assert.match(html, /id="gate-ficha"/);
+    assert.match(html, /data-tab="cuenta"/);
+    assert.match(html, />Perfil</);
+    assert.doesNotMatch(html, /data-tab="coach"/);
 
     const routine = await request(server, { path: "/routines/m15.json" });
     assert.equal(routine.status, 200);
-    assert.equal(routine.json.days.length, 5);
+    assert.equal(routine.json.days.length, 4);
     assert.equal(routine.json.category, "m15");
+    assert.equal(routine.json.week, "47-50");
+    assert.deepEqual(routine.json.days.map((day) => day.label), ["Lunes", "Martes", "Jueves", "Viernes"]);
 
     const imported = await request(server, {
       method: "POST",

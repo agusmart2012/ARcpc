@@ -9,8 +9,10 @@ const selfsigned = require("selfsigned");
 const { parseUpload } = require("./lib/parse");
 const { searchVideos } = require("./lib/youtube");
 const pushhub = require("./lib/pushhub");
+const accounts = require("./lib/accounts");
 
-const ROOT = path.join(__dirname, "public");
+const ROOT = [path.join(__dirname, "public"), path.join(process.cwd(), "public"), path.join(__dirname, "..", "public")]
+  .find((dir) => fs.existsSync(path.join(dir, "index.html"))) || path.join(__dirname, "public");
 const MODEL = "grok-4.7";
 const MAX_IMPORT = 8 * 1024 * 1024;
 const MAX_JSON = 200 * 1024;
@@ -46,14 +48,18 @@ function loadEnv(file) {
   }
 }
 
-function sendJson(res, status, body) {
+function sendJson(res, status, body, extra) {
   const payload = JSON.stringify(body);
-  res.writeHead(status, {
+  res.writeHead(status, Object.assign({
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(payload),
     "Cache-Control": "no-store",
-  });
+  }, extra || {}));
   res.end(payload);
+}
+
+function sendAuth(res, status, body, cookie) {
+  sendJson(res, status, body, cookie ? { "Set-Cookie": cookie } : undefined);
 }
 
 function readBody(req, limit) {
@@ -307,6 +313,42 @@ async function handleNotifyRoutine(req, res) {
   sendJson(res, 200, { ok: true, sent });
 }
 
+async function handleRegister(req, res) {
+  accounts.rateLimit(req);
+  const user = await accounts.register(await readJson(req));
+  sendAuth(res, 201, { user, data: { data: null, updated: null } }, accounts.sessionCookie(user.id, req));
+}
+
+async function handleLogin(req, res) {
+  accounts.rateLimit(req);
+  const user = await accounts.login(await readJson(req));
+  const data = await accounts.getData(user.id);
+  sendAuth(res, 200, { user, data }, accounts.sessionCookie(user.id, req));
+}
+
+async function handleLogout(req, res) {
+  sendAuth(res, 200, { ok: true }, accounts.clearCookie(req));
+}
+
+async function handleMe(req, res) {
+  const user = await accounts.userFromRequest(req);
+  if (!user) {
+    sendJson(res, 200, { user: null, data: null });
+    return;
+  }
+  sendJson(res, 200, { user, data: await accounts.getData(user.id) });
+}
+
+async function handleAuthData(req, res) {
+  const user = await accounts.requireUser(req);
+  if (req.method === "GET") {
+    sendJson(res, 200, await accounts.getData(user.id));
+    return;
+  }
+  const body = await readJson(req);
+  sendJson(res, 200, await accounts.putData(user.id, body.data));
+}
+
 async function handleVideos(req, res, url) {
   try {
     const videos = await searchVideos(url.searchParams.get("q") || "");
@@ -354,7 +396,28 @@ function handleRequest(req, res) {
           ai: Boolean(process.env.XAI_API_KEY),
           model: MODEL,
           httpsPort: securePort || null,
+          accounts: accounts.storageKind(),
         });
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/auth/register") {
+        await handleRegister(req, res);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/auth/login") {
+        await handleLogin(req, res);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+        await handleLogout(req, res);
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/api/auth/me") {
+        await handleMe(req, res);
+        return;
+      }
+      if ((req.method === "GET" || req.method === "PUT") && url.pathname === "/api/auth/data") {
+        await handleAuthData(req, res);
         return;
       }
       if (req.method === "POST" && url.pathname === "/api/import") {
@@ -463,6 +526,7 @@ function listen(port = Number(process.env.PORT) || 4173) {
       console.log("  En el iPhone:   " + url);
       console.log("  Avisos iPhone:  " + url.replace("http://", "https://").replace(":" + port, ":" + nextSecure));
     }
+    console.log("  Cuentas:        " + (accounts.storageKind() === "blob" ? "Excel en Vercel Blob" : "Excel en data/cuentas.xlsx"));
     console.log("  Coach:          " + (process.env.XAI_API_KEY ? "listo (Grok)" : "falta XAI_API_KEY en .env"));
     console.log("");
   });
@@ -471,4 +535,4 @@ function listen(port = Number(process.env.PORT) || 4173) {
 
 if (require.main === module) listen();
 
-module.exports = { createServer, listen };
+module.exports = { createServer, listen, handleRequest };

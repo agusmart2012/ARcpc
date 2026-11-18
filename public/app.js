@@ -7,6 +7,8 @@ const KEYS = {
   notify: "cpc.notify",
   notices: "cpc.notices",
   stamp: "cpc.m15stamp",
+  account: "cpc.account",
+  profile: "cpc.profile",
 };
 const DAY_PICKS = [
   [1, "L"],
@@ -36,20 +38,36 @@ const WEEK = [
   [6, "Sábado"],
   [0, "Domingo"],
 ];
-const SUGGESTIONS = [
-  "¿Cómo caliento esta sesión?",
-  "Explicame la parte central de hoy",
-  "¿Qué hago si no llego al porcentaje?",
-  "¿El peso que anoté está bien para el RIR?",
+const ROLES = [
+  { id: "jugador", label: "Jugador/a" },
+  { id: "hincha", label: "Hincha" },
+  { id: "cuerpo", label: "Cuerpo técnico" },
+];
+const POSICIONES = [
+  "Pilar",
+  "Hooker",
+  "Segunda línea",
+  "Ala",
+  "Octavo",
+  "Medio scrum",
+  "Apertura",
+  "Centro",
+  "Wing",
+  "Fullback",
+];
+const STATS = [
+  { id: "tackle", label: "Tackle" },
+  { id: "velocidad", label: "Velocidad" },
+  { id: "resistencia", label: "Resistencia" },
+  { id: "pase", label: "Pase" },
+  { id: "patada", label: "Patada" },
+  { id: "individualidad", label: "Individualidad" },
+  { id: "equipo", label: "Equipo" },
 ];
 
 const fileInput = document.getElementById("file");
 const importBtn = document.getElementById("import-btn");
 const main = document.getElementById("main");
-const composer = document.getElementById("composer");
-const chips = document.getElementById("chips");
-const coachInput = document.getElementById("coach-input");
-const coachSend = document.getElementById("coach-send");
 const overlay = document.getElementById("overlay");
 const sheetTitle = document.getElementById("sheet-title");
 const sheetBody = document.getElementById("sheet-body");
@@ -64,7 +82,7 @@ const storedNotices = load(KEYS.notices);
 const openingTab = new URLSearchParams(location.search).get("tab");
 
 const state = {
-  tab: openingTab === "semana" || openingTab === "avisos" || openingTab === "coach" ? openingTab : "hoy",
+  tab: openingTab === "semana" || openingTab === "avisos" || openingTab === "cuenta" ? openingTab : "hoy",
   category: CATEGORIES.some((item) => item.id === storedCategory) ? storedCategory : "m15",
   overrides: objectBag(storedOverrides),
   builtins: {},
@@ -79,18 +97,88 @@ const state = {
   focusKey: null,
   ai: false,
   importing: false,
-  coachBusy: false,
   ready: false,
   loadError: "",
+  account: objectBag(load(KEYS.account)).email ? objectBag(load(KEYS.account)) : null,
+  profile: defaultProfile(load(KEYS.profile)),
 };
 
 let importLock = false;
 let dismissSheet = null;
 let videoToken = 0;
 let toastTimer = 0;
+let fichaStep = 1;
 
 function objectBag(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function clampStat(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(1, Math.min(99, Math.round(n)));
+}
+
+function clampNum(value, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  const rounded = Math.round(n);
+  if (rounded < min || rounded > max) return 0;
+  return rounded;
+}
+
+function defaultProfile(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const stats = source.stats && typeof source.stats === "object" ? source.stats : {};
+  const rol = ROLES.some((item) => item.id === source.rol) ? source.rol : "";
+  return {
+    rol,
+    posicion: POSICIONES.includes(source.posicion) ? source.posicion : "",
+    edad: clampNum(source.edad, 6, 80),
+    altura: clampNum(source.altura, 120, 220),
+    peso: clampNum(source.peso, 30, 180),
+    ciudad: String(source.ciudad || "").replace(/\s+/g, " ").trim().slice(0, 40),
+    stats: {
+      tackle: clampStat(stats.tackle, 50),
+      velocidad: clampStat(stats.velocidad, 50),
+      resistencia: clampStat(stats.resistencia, 50),
+      pase: clampStat(stats.pase, 50),
+      patada: clampStat(stats.patada, 50),
+      individualidad: clampStat(stats.individualidad, 50),
+      equipo: clampStat(stats.equipo, 50),
+    },
+  };
+}
+
+function profileReady(profile) {
+  const p = profile || state.profile;
+  if (!p || !p.rol) return false;
+  if (p.rol === "jugador" && !p.posicion) return false;
+  if (!p.edad || !p.altura || !p.peso) return false;
+  if (!String(p.ciudad || "").trim()) return false;
+  return true;
+}
+
+function roleLabel(id) {
+  const found = ROLES.find((item) => item.id === id);
+  return found ? found.label : "";
+}
+
+function mediaOf(stats) {
+  const bag = stats || {};
+  const vals = STATS.map((item) => Number(bag[item.id]) || 0);
+  return Math.round(vals.reduce((sum, n) => sum + n, 0) / vals.length);
+}
+
+function rankedStats(stats) {
+  return STATS
+    .map((item) => ({ id: item.id, label: item.label, value: Number(stats && stats[item.id]) || 0 }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"));
+}
+
+function initialOf(name) {
+  const text = String(name || "").trim();
+  return text ? text.charAt(0).toUpperCase() : "J";
 }
 
 function defaultNotify(raw) {
@@ -115,12 +203,553 @@ function load(key) {
   }
 }
 
-function save(key, value) {
+function saveLocal(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
     toast("No pude guardar en este teléfono.");
   }
+}
+
+function save(key, value) {
+  saveLocal(key, value);
+  queueCloudSave();
+}
+
+let cloudTimer = 0;
+let cloudBusy = false;
+let cloudDirty = false;
+
+function snapshot() {
+  return {
+    category: state.category,
+    overrides: state.overrides,
+    log: state.log,
+    cycle: state.cycle,
+    chat: state.chat,
+    notify: state.notify,
+    notices: state.notices,
+    stamp: load(KEYS.stamp),
+    profile: state.profile,
+  };
+}
+
+function applySnapshot(data) {
+  if (!data || typeof data !== "object") return;
+  if (CATEGORIES.some((item) => item.id === data.category)) {
+    state.category = data.category;
+    saveLocal(KEYS.category, state.category);
+  }
+  if (data.overrides && typeof data.overrides === "object") {
+    state.overrides = objectBag(data.overrides);
+    saveLocal(KEYS.overrides, state.overrides);
+  }
+  if (data.log && typeof data.log === "object") {
+    state.log = objectBag(data.log);
+    saveLocal(KEYS.log, state.log);
+  }
+  if (data.cycle && typeof data.cycle === "object") {
+    state.cycle = objectBag(data.cycle);
+    saveLocal(KEYS.cycle, state.cycle);
+  }
+  if (data.chat && typeof data.chat === "object") {
+    state.chat = objectBag(data.chat);
+    saveLocal(KEYS.chat, state.chat);
+  }
+  if (data.notify && typeof data.notify === "object") {
+    state.notify = defaultNotify(data.notify);
+    saveLocal(KEYS.notify, state.notify);
+  }
+  if (Array.isArray(data.notices)) {
+    state.notices = data.notices.filter((item) => item && item.title).slice(0, 20);
+    saveLocal(KEYS.notices, state.notices);
+  }
+  if (typeof data.stamp === "string") saveLocal(KEYS.stamp, data.stamp);
+  if (data.profile && typeof data.profile === "object") {
+    state.profile = defaultProfile(data.profile);
+    saveLocal(KEYS.profile, state.profile);
+  }
+}
+
+function queueCloudSave() {
+  if (!state.account) return;
+  cloudDirty = true;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(pushCloud, 700);
+}
+
+async function pushCloud() {
+  if (!state.account) return;
+  if (cloudBusy) {
+    cloudDirty = true;
+    return;
+  }
+  cloudBusy = true;
+  cloudDirty = false;
+  try {
+    const response = await fetch("/api/auth/data", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: snapshot() }),
+      keepalive: true,
+    });
+    if (response.status === 401) {
+      state.account = null;
+      showGate();
+      return;
+    }
+  } catch {
+    cloudDirty = true;
+  } finally {
+    cloudBusy = false;
+    if (cloudDirty) {
+      clearTimeout(cloudTimer);
+      cloudTimer = setTimeout(pushCloud, 1600);
+    }
+  }
+}
+
+async function authApi(url, options) {
+  const response = await fetch(url, Object.assign({
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+  }, options || {}));
+  let body = {};
+  try {
+    body = await response.json();
+  } catch {
+    body = {};
+  }
+  if (!response.ok) {
+    const error = new Error((body && body.message) || "No pude hablar con el servidor.");
+    error.status = response.status;
+    throw error;
+  }
+  return body;
+}
+
+function unlockApp() {
+  app.classList.remove("gated");
+  const gate = document.getElementById("gate");
+  if (gate) {
+    gate.hidden = true;
+    gate.classList.remove("ficha-open");
+  }
+  const ficha = document.getElementById("gate-ficha");
+  if (ficha) ficha.hidden = true;
+  const auth = document.getElementById("gate-auth");
+  if (auth) auth.hidden = false;
+}
+
+function showGate() {
+  app.classList.add("gated");
+  const gate = document.getElementById("gate");
+  if (gate) {
+    gate.hidden = false;
+    gate.classList.remove("ficha-open");
+  }
+  const auth = document.getElementById("gate-auth");
+  const ficha = document.getElementById("gate-ficha");
+  if (auth) auth.hidden = false;
+  if (ficha) ficha.hidden = true;
+}
+
+function showFichaGate() {
+  app.classList.add("gated");
+  const gate = document.getElementById("gate");
+  if (gate) {
+    gate.hidden = false;
+    gate.classList.add("ficha-open");
+  }
+  const auth = document.getElementById("gate-auth");
+  const ficha = document.getElementById("gate-ficha");
+  if (auth) auth.hidden = true;
+  if (ficha) ficha.hidden = false;
+  fichaStep = 1;
+  renderFicha();
+}
+
+function finishLogin() {
+  unlockApp();
+  state.plan = planFor(state.category);
+  ensureCycle();
+  if (state.ready) render({ centerCat: true });
+}
+
+function enterAccount(user, remote) {
+  if (!user || !user.email) return;
+  state.account = { id: user.id, nombre: user.nombre, email: user.email };
+  saveLocal(KEYS.account, state.account);
+  if (remote && remote.data && typeof remote.data === "object") applySnapshot(remote.data);
+  else queueCloudSave();
+  if (!profileReady(state.profile)) {
+    showFichaGate();
+    return;
+  }
+  finishLogin();
+}
+
+function clearLocalUser() {
+  for (const key of Object.values(KEYS)) {
+    try { localStorage.removeItem(key); } catch { /* sigue */ }
+  }
+  state.account = null;
+  state.profile = defaultProfile({});
+  state.category = "m15";
+  state.overrides = {};
+  state.log = {};
+  state.cycle = {};
+  state.chat = {};
+  state.notify = defaultNotify({});
+  state.notices = [];
+  state.plan = planFor("m15");
+  state.tab = "hoy";
+}
+
+async function logoutAccount() {
+  closeSheet();
+  try {
+    await authApi("/api/auth/logout", { method: "POST", body: "{}" });
+  } catch {
+    /* igual cerramos acá */
+  }
+  clearLocalUser();
+  showGate();
+  toast("Cerraste sesión.");
+}
+
+function setGateMode(register) {
+  const loginTab = document.getElementById("gate-login-tab");
+  const registerTab = document.getElementById("gate-register-tab");
+  const nameWrap = document.getElementById("gate-name-wrap");
+  const password = document.getElementById("gate-password");
+  const submit = document.getElementById("gate-submit");
+  loginTab.setAttribute("aria-selected", register ? "false" : "true");
+  registerTab.setAttribute("aria-selected", register ? "true" : "false");
+  nameWrap.hidden = !register;
+  document.getElementById("gate-name").required = register;
+  password.autocomplete = register ? "new-password" : "current-password";
+  submit.textContent = register ? "Crear cuenta" : "Entrar";
+}
+
+function gateError(text) {
+  const node = document.getElementById("gate-error");
+  if (!text) {
+    node.hidden = true;
+    node.textContent = "";
+    return;
+  }
+  node.hidden = false;
+  node.textContent = text;
+}
+
+async function bootAuth() {
+  try {
+    const me = await authApi("/api/auth/me");
+    if (me.user) {
+      enterAccount(me.user, me.data);
+      return;
+    }
+    if (state.account) clearLocalUser();
+    showGate();
+  } catch {
+    if (state.account && state.account.email) {
+      if (profileReady(state.profile)) {
+        finishLogin();
+        toast("Sin conexión. Mostramos lo último de este teléfono.");
+      } else showFichaGate();
+      return;
+    }
+    showGate();
+  }
+}
+
+function pickButtons(name, options, current, onpick) {
+  return el("div", { class: "picks", role: "group", "aria-label": name }, options.map((item) => {
+    const id = typeof item === "string" ? item : item.id;
+    const label = typeof item === "string" ? item : item.label;
+    const on = current === id;
+    return el("button", {
+      type: "button",
+      class: "pick",
+      "aria-pressed": on ? "true" : "false",
+      onclick: () => onpick(id),
+    }, label);
+  }));
+}
+
+function identityCard(opts) {
+  const compact = Boolean(opts && opts.compact);
+  const p = defaultProfile(state.profile);
+  const account = state.account || {};
+  const rol = roleLabel(p.rol);
+  const chips = [
+    p.rol === "jugador" ? "Jugador/a" : "",
+    p.posicion,
+    p.edad ? p.edad + " años" : "",
+    p.altura ? p.altura + " cm" : "",
+    p.peso ? p.peso + " kg" : "",
+    p.ciudad,
+  ].filter(Boolean);
+  return el(compact ? "button" : "section", {
+    class: "id-card" + (compact ? " compact" : ""),
+    type: compact ? "button" : undefined,
+    onclick: compact ? openAccount : undefined,
+  }, [
+    el("div", { class: "id-top" }, [
+      el("span", { class: "id-avatar" }, initialOf(account.nombre)),
+      el("div", { class: "id-who" }, [
+        el("strong", {}, account.nombre || "Jugador"),
+        el("span", {}, account.email || ""),
+      ]),
+      rol ? el("span", { class: "id-badge" }, rol) : null,
+    ]),
+    el("p", { class: "id-club" }, [el("span", { class: "id-star", "aria-hidden": "true" }, "★"), " Carrasco Polo"]),
+    chips.length ? el("div", { class: "id-chips" }, chips.map((chip) => el("span", { class: "id-chip" }, chip))) : null,
+  ]);
+}
+
+function playerCard(profile, opts) {
+  const compact = Boolean(opts && opts.compact);
+  const p = defaultProfile(profile);
+  const account = state.account || {};
+  const media = mediaOf(p.stats);
+  const order = rankedStats(p.stats);
+  const high = order.slice(0, 2);
+  const low = order.slice(-2).reverse();
+  const meta = [p.posicion, p.altura ? p.altura + " cm" : "", p.peso ? p.peso + " kg" : ""].filter(Boolean).join(" · ");
+  return el("section", { class: "player-card" + (compact ? " mini" : "") }, [
+    el("img", { class: "player-mark", src: "/crest.png", alt: "" }),
+    el("div", { class: "player-head" }, [
+      el("div", { class: "player-id" }, [
+        el("div", { class: "player-brand" }, [
+          el("img", { class: "player-crest", src: "/crest.png", alt: "" }),
+          el("div", {}, [
+            el("p", { class: "player-kicker" }, "SALA AR PLAYER CARD"),
+            el("p", { class: "player-club" }, "Carrasco Polo"),
+          ]),
+        ]),
+        el("h2", { class: "player-name" }, account.nombre || "Jugador"),
+        meta ? el("p", { class: "player-meta" }, meta) : null,
+      ]),
+      el("div", { class: "media-box" }, [
+        el("b", {}, String(media)),
+        el("span", {}, "MEDIA"),
+      ]),
+    ]),
+    el("div", { class: "stat-grid" }, STATS.map((item) => el("div", { class: "stat-cell" }, [
+      el("span", {}, item.label),
+      el("b", {}, String(p.stats[item.id] || 0)),
+    ]))),
+    compact ? null : el("div", { class: "duo" }, [
+      el("div", { class: "duo-box" }, [
+        el("p", { class: "duo-label" }, "Fortalezas"),
+        ...high.map((item) => el("p", {}, item.label + " · " + item.value)),
+      ]),
+      el("div", { class: "duo-box" }, [
+        el("p", { class: "duo-label" }, "A mejorar"),
+        ...low.map((item) => el("p", {}, item.label + " · " + item.value)),
+      ]),
+    ]),
+  ]);
+}
+
+function openAccount() {
+  if (!state.account) {
+    showGate();
+    return;
+  }
+  if (!profileReady(state.profile)) {
+    showFichaGate();
+    return;
+  }
+  state.tab = "cuenta";
+  render({ resetScroll: true, morphTabs: true });
+}
+
+function viewCuenta() {
+  const ready = profileReady(state.profile);
+  const nodes = [
+    el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, "Carrasco Polo Club"),
+      el("h1", {}, "Perfil"),
+    ]),
+    ready ? identityCard() : null,
+    ready ? playerCard(state.profile) : el("p", { class: "lead" }, "Falta armar tu ficha."),
+    el("div", { class: "sheet-actions" }, [
+      el("button", { class: "btn ghost", type: "button", onclick: showFichaGate }, ready ? "Editar ficha" : "Armar ficha"),
+      el("button", { class: "btn ghost", type: "button", onclick: logoutAccount }, "Cerrar sesión"),
+    ]),
+  ];
+  return nodes.filter(Boolean);
+}
+
+function renderFicha() {
+  const box = document.getElementById("gate-ficha");
+  if (!box) return;
+  const p = defaultProfile(state.profile);
+  const editing = profileReady(p);
+  if (fichaStep === 2) {
+    box.replaceChildren(
+      el("p", { class: "gate-kicker" }, "Carrasco Polo Club"),
+      el("h1", {}, "Tu carta"),
+      el("p", { class: "gate-copy" }, "Poné cómo te ves en la cancha. Después lo podés cambiar."),
+      el("div", { id: "ficha-live" }, playerCard(p, { compact: true })),
+      el("div", { class: "stat-edits" }, STATS.map((item) => {
+        const value = p.stats[item.id];
+        return el("label", { class: "stat-edit" }, [
+          el("span", {}, item.label),
+          el("b", { id: "stat-val-" + item.id }, String(value)),
+          el("input", {
+            type: "range",
+            min: "1",
+            max: "99",
+            value: String(value),
+            "aria-label": item.label,
+            oninput: (event) => {
+              state.profile = defaultProfile(state.profile);
+              state.profile.stats[item.id] = clampStat(event.target.value, 50);
+              const label = document.getElementById("stat-val-" + item.id);
+              if (label) label.textContent = String(state.profile.stats[item.id]);
+              const live = document.getElementById("ficha-live");
+              if (live) live.replaceChildren(playerCard(state.profile, { compact: true }));
+            },
+          }),
+        ]);
+      })),
+      el("p", { class: "gate-error", id: "ficha-error", hidden: true }),
+      el("button", { type: "button", class: "btn primary", onclick: saveFicha }, "Listo"),
+      el("button", { type: "button", class: "btn ghost", onclick: () => { fichaStep = 1; renderFicha(); } }, "Volver"),
+    );
+    return;
+  }
+  const posWrap = el("div", { id: "ficha-pos-wrap" }, [
+    el("p", { class: "gate-label" }, "Posición"),
+    pickButtons("Posición", POSICIONES, p.posicion, (id) => {
+      stashFichaBio();
+      state.profile.posicion = id;
+      renderFicha();
+    }),
+  ]);
+  if (p.rol && p.rol !== "jugador") posWrap.hidden = true;
+  box.replaceChildren(
+    el("p", { class: "gate-kicker" }, "Carrasco Polo Club"),
+    el("h1", {}, "Tu ficha"),
+    el("p", { class: "gate-copy" }, "Así te van a ver en la sala. Nombre, mail y club ya están."),
+    el("p", { class: "gate-label" }, "En el club sos"),
+    pickButtons("Rol", ROLES, p.rol, (id) => {
+      stashFichaBio();
+      state.profile.rol = id;
+      renderFicha();
+    }),
+    posWrap,
+    el("div", { class: "gate-row" }, [
+      el("label", { class: "gate-field" }, [
+        el("span", {}, "Edad"),
+        el("input", {
+          id: "ficha-edad",
+          type: "number",
+          inputmode: "numeric",
+          min: "6",
+          max: "80",
+          placeholder: "14",
+          value: p.edad ? String(p.edad) : "",
+        }),
+      ]),
+      el("label", { class: "gate-field" }, [
+        el("span", {}, "Altura"),
+        el("input", {
+          id: "ficha-altura",
+          type: "number",
+          inputmode: "numeric",
+          min: "120",
+          max: "220",
+          placeholder: "175",
+          value: p.altura ? String(p.altura) : "",
+        }),
+      ]),
+      el("label", { class: "gate-field" }, [
+        el("span", {}, "Peso"),
+        el("input", {
+          id: "ficha-peso",
+          type: "number",
+          inputmode: "numeric",
+          min: "30",
+          max: "180",
+          placeholder: "84",
+          value: p.peso ? String(p.peso) : "",
+        }),
+      ]),
+    ]),
+    el("label", { class: "gate-field" }, [
+      el("span", {}, "Ciudad"),
+      el("input", {
+        id: "ficha-ciudad",
+        type: "text",
+        maxlength: "40",
+        placeholder: "Montevideo",
+        value: p.ciudad || "Montevideo",
+      }),
+    ]),
+    el("p", { class: "gate-error", id: "ficha-error", hidden: true }),
+    el("button", { type: "button", class: "btn primary", onclick: nextFicha }, "Siguiente"),
+  );
+  if (editing) box.append(el("button", { type: "button", class: "btn ghost", onclick: finishLogin }, "Ahora no"));
+}
+
+function readFichaBio() {
+  const edad = clampNum(document.getElementById("ficha-edad") && document.getElementById("ficha-edad").value, 6, 80);
+  const altura = clampNum(document.getElementById("ficha-altura") && document.getElementById("ficha-altura").value, 120, 220);
+  const peso = clampNum(document.getElementById("ficha-peso") && document.getElementById("ficha-peso").value, 30, 180);
+  const ciudad = String((document.getElementById("ficha-ciudad") && document.getElementById("ficha-ciudad").value) || "").replace(/\s+/g, " ").trim();
+  state.profile = defaultProfile(Object.assign({}, state.profile, { edad, altura, peso, ciudad }));
+  return state.profile;
+}
+
+function stashFichaBio() {
+  if (!document.getElementById("ficha-edad")) return;
+  readFichaBio();
+}
+
+function fichaMessage(text) {
+  const node = document.getElementById("ficha-error");
+  if (!node) return;
+  if (!text) {
+    node.hidden = true;
+    node.textContent = "";
+    return;
+  }
+  node.hidden = false;
+  node.textContent = text;
+}
+
+function nextFicha() {
+  readFichaBio();
+  if (!state.profile.rol) return fichaMessage("Elegí si sos jugador, hincha o cuerpo técnico.");
+  if (state.profile.rol === "jugador" && !state.profile.posicion) return fichaMessage("Elegí tu posición.");
+  if (!state.profile.edad) return fichaMessage("Poné tu edad.");
+  if (!state.profile.altura) return fichaMessage("Poné tu altura en cm.");
+  if (!state.profile.peso) return fichaMessage("Poné tu peso en kg.");
+  if (!state.profile.ciudad) return fichaMessage("Poné tu ciudad.");
+  fichaMessage("");
+  fichaStep = 2;
+  renderFicha();
+}
+
+function saveFicha() {
+  if (fichaStep === 1) readFichaBio();
+  if (!profileReady(state.profile)) {
+    fichaStep = 1;
+    renderFicha();
+    fichaMessage("Falta completar la ficha.");
+    return;
+  }
+  save(KEYS.profile, state.profile);
+  finishLogin();
+  state.tab = "cuenta";
+  render({ resetScroll: true, morphTabs: true });
+  toast("Ficha lista.");
 }
 
 function validPlan(plan) {
@@ -138,11 +767,6 @@ function planFor(id) {
   const builtin = state.builtins[id];
   if (validPlan(builtin)) return builtin;
   return null;
-}
-
-function messages() {
-  if (!Array.isArray(state.chat[state.category])) state.chat[state.category] = [];
-  return state.chat[state.category];
 }
 
 function currentCycle() {
@@ -182,7 +806,7 @@ function el(tag, attrs, children) {
   for (const [key, value] of Object.entries(attrs || {})) {
     if (value == null || value === false) continue;
     if (key === "class") node.className = value;
-    else if (key === "onclick" || key === "oninput") node.addEventListener(key.slice(2), value);
+    else if (key.slice(0, 2) === "on" && typeof value === "function") node.addEventListener(key.slice(2), value);
     else node.setAttribute(key, String(value));
   }
   const list = Array.isArray(children) ? children : children == null ? [] : [children];
@@ -202,10 +826,14 @@ function toast(text) {
   const node = document.getElementById("toast");
   node.textContent = text;
   node.hidden = false;
+  requestAnimationFrame(() => node.classList.add("show"));
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
-    node.hidden = true;
-  }, 3200);
+    node.classList.remove("show");
+    setTimeout(() => {
+      if (!node.classList.contains("show")) node.hidden = true;
+    }, 360);
+  }, 2800);
 }
 
 function logBag() {
@@ -321,55 +949,53 @@ function agenda(plan) {
   return rows;
 }
 
-function routineContext() {
-  const head = "Categoría " + categoryLabel() + ". Rugby, sala de alto rendimiento del Carrasco Polo Club.";
-  if (!state.plan) return head + " Todavía no hay una rutina cargada en esta categoría.";
-  const auto = automaticDay(state.plan);
-  const picked = state.focusKey ? state.plan.days.find((day) => day.key === state.focusKey) : null;
-  const day = picked || auto.day;
-  if (!day) {
-    const next = nextTraining(state.plan);
-    return head + (next ? " Hoy no hay rutina. La próxima es " + next.day.label + "." : " Hoy no hay rutina cargada.");
-  }
-  const lines = [head];
-  if (state.plan.week || state.plan.period) {
-    lines.push(["Semana " + (state.plan.week || ""), state.plan.period].filter(Boolean).join(" · "));
-  }
-  if (state.plan.tempo) lines.push(state.plan.tempo);
-  lines.push("Día: " + [day.session, day.label].filter(Boolean).join(" · "));
-  let number = 1;
-  for (const block of day.blocks) {
-    if (block.title) lines.push(block.title);
-    for (const ex of block.exercises) {
-      const entry = entryFor(ex.id);
-      const done = entry.sets.filter(Boolean).length;
-      const total = ex.sets || 1;
-      let line = number + ". " + ex.name + " — " + (meta(ex) || "sin detalle") + ". Marcadas hoy: " + done + "/" + total;
-      if (entry.weight) line += ". Kilos anotados: " + entry.weight;
-      if (ex.notes) line += ". Obs: " + ex.notes;
-      lines.push(line);
-      number += 1;
-    }
-  }
-  return lines.join("\n").slice(0, 5000);
-}
+let sheetClosing = false;
 
 function closeSheet() {
-  overlay.hidden = true;
-  app.inert = false;
-  sheetBody.replaceChildren();
-  const finish = dismissSheet;
-  dismissSheet = null;
-  if (finish) finish();
+  if (overlay.hidden || sheetClosing) {
+    const finish = dismissSheet;
+    dismissSheet = null;
+    if (finish) finish();
+    return;
+  }
+  sheetClosing = true;
+  overlay.classList.remove("open");
+  const done = () => {
+    if (!sheetClosing) return;
+    sheetClosing = false;
+    overlay.hidden = true;
+    app.inert = false;
+    sheetBody.replaceChildren();
+    const finish = dismissSheet;
+    dismissSheet = null;
+    if (finish) finish();
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    done();
+    return;
+  }
+  const sheet = overlay.querySelector(".sheet");
+  const onEnd = (event) => {
+    if (event.target !== sheet || (event.propertyName && event.propertyName !== "transform")) return;
+    sheet.removeEventListener("transitionend", onEnd);
+    done();
+  };
+  sheet.addEventListener("transitionend", onEnd);
+  setTimeout(done, 560);
 }
 
 function openSheet(title, nodes, onDismiss) {
   videoToken += 1;
+  sheetClosing = false;
   dismissSheet = onDismiss || null;
   sheetTitle.textContent = title;
   sheetBody.replaceChildren(...nodes);
   overlay.hidden = false;
   app.inert = true;
+  overlay.classList.remove("open");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => overlay.classList.add("open"));
+  });
 }
 
 function ask(title, copy, okLabel) {
@@ -539,27 +1165,47 @@ function progressBar(progress) {
   return bar;
 }
 
+function progressRing(progress) {
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  return el("div", {
+    class: "ring",
+    style: "--p:" + pct,
+    "aria-hidden": "true",
+  }, el("b", {}, String(pct)));
+}
+
+function sessionPills(bits) {
+  if (!bits.length) return null;
+  return el("div", { class: "pills" }, bits.map((bit) => el("span", { class: "pill" }, bit)));
+}
+
 function loadingState() {
   return [
-    el("p", { class: "kicker" }, "Carrasco Polo Club"),
-    el("h1", {}, categoryLabel()),
-    el("p", { class: "lead" }, "Cargando la planilla…"),
+    el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, "Carrasco Polo Club"),
+      el("h1", {}, categoryLabel()),
+      el("p", { class: "lead" }, "Cargando la planilla…"),
+    ]),
   ];
 }
 
 function emptyCategory() {
   if (state.category === "m15" && state.loadError) {
     return [
-      el("p", { class: "kicker" }, "Sala de alto rendimiento"),
-      el("h1", {}, "M15"),
-      el("p", { class: "lead" }, "No llegué a leer la planilla de M15. La compu tiene que estar prendida."),
+      el("header", { class: "hero" }, [
+        el("p", { class: "kicker" }, "Sala de alto rendimiento"),
+        el("h1", {}, "M15"),
+        el("p", { class: "lead" }, "No llegué a leer la planilla de M15. La compu tiene que estar prendida."),
+      ]),
       el("button", { class: "btn primary", type: "button", onclick: () => location.reload() }, "Reintentar"),
     ];
   }
   const nodes = [
-    el("p", { class: "kicker" }, "Sala de alto rendimiento"),
-    el("h1", {}, categoryLabel()),
-    el("p", { class: "lead" }, "Esta categoría todavía no tiene planilla. Cuando esté, va a aparecer día por día, igual que M15."),
+    el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, "Sala de alto rendimiento"),
+      el("h1", {}, categoryLabel()),
+      el("p", { class: "lead" }, "Esta categoría todavía no tiene planilla. Cuando esté, va a aparecer día por día, igual que M15."),
+    ]),
   ];
   if (state.category !== "m15" && state.builtins.m15) {
     nodes.push(el("button", { class: "btn primary", type: "button", onclick: () => selectCategory("m15") }, "Ver M15"));
@@ -641,24 +1287,30 @@ function viewHoy() {
   const auto = automaticDay(state.plan);
   const picked = state.focusKey ? state.plan.days.find((day) => day.key === state.focusKey) : null;
   const day = picked || auto.day;
-  const nodes = [el("p", { class: "kicker" }, categoryLabel() + " · " + cap(longDate()))];
+  const nodes = [];
   if (!day) {
-    nodes.push(el("h1", {}, "Descanso"));
     const next = nextTraining(state.plan);
-    if (!next) {
-      nodes.push(el("p", { class: "lead" }, "Este día de la semana no tiene ejercicios."));
-      return nodes;
+    nodes.push(el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, categoryLabel() + " · " + cap(longDate())),
+      el("h1", {}, "Descanso"),
+      el("p", { class: "lead" }, next
+        ? (next.inDays === 1 ? "Mañana" : "En " + next.inDays + " días") + " toca " + next.day.label + "."
+        : "Este día de la semana no tiene ejercicios."),
+    ]));
+    if (next) {
+      nodes.push(el("button", {
+        class: "next-card",
+        type: "button",
+        onclick: () => {
+          state.focusKey = next.day.key;
+          render({ resetScroll: true });
+        },
+      }, [
+        el("span", { class: "kicker" }, next.inDays === 1 ? "Próxima sesión" : "En " + next.inDays + " días"),
+        el("strong", {}, next.day.label),
+        el("span", {}, [next.day.session, state.plan.period].filter(Boolean).join(" · ")),
+      ]));
     }
-    const when = next.inDays === 1 ? "Mañana" : "En " + next.inDays + " días";
-    nodes.push(el("p", { class: "lead" }, when + " toca " + next.day.label + "."));
-    nodes.push(el("button", {
-      class: "btn primary",
-      type: "button",
-      onclick: () => {
-        state.focusKey = next.day.key;
-        render({ resetScroll: true });
-      },
-    }, "Ver " + next.day.label));
     return nodes;
   }
 
@@ -669,11 +1321,19 @@ function viewHoy() {
       el("button", { type: "button", onclick: () => { state.focusKey = null; render({ resetScroll: true }); } }, "Volver a hoy"),
     ]));
   }
-  nodes.push(el("h1", {}, day.label));
   const sessionBits = [day.session, state.plan.week ? "Semana " + state.plan.week : "", state.plan.period].filter(Boolean);
-  if (sessionBits.length) nodes.push(el("p", { class: "fine" }, sessionBits.join(" · ")));
   const progress = seriesOf(day);
-  nodes.push(el("p", { class: "tally" }, tallyText(progress)));
+  nodes.push(el("header", { class: "hero" }, [
+    el("p", { class: "kicker" }, categoryLabel() + " · " + cap(longDate())),
+    el("div", { class: "hero-row" }, [
+      el("div", {}, [
+        el("h1", {}, day.label),
+        sessionPills(sessionBits),
+        el("p", { class: "tally" }, tallyText(progress)),
+      ]),
+      progressRing(progress),
+    ]),
+  ]));
   nodes.push(progressBar(progress));
   if (state.plan.tempo || (state.plan.tips && state.plan.tips.length) || (state.plan.reference && state.plan.reference.length)) {
     nodes.push(el("button", { class: "text-btn planilla-link", type: "button", onclick: () => openPlanilla() }, "Tempo, cargas y RPE"));
@@ -703,7 +1363,7 @@ function viewHoy() {
 function dayRow(row, auto) {
   const isToday = (row.day && auto.day && row.day.key === auto.day.key) || (row.rest && row.weekday === new Date().getDay());
   if (row.rest) {
-    return el("div", { class: "day rest" }, [
+    return el("div", { class: "day rest" + (isToday ? " today" : "") }, [
       el("strong", {}, row.label),
       el("em", {}, isToday ? "Hoy" : "Descanso"),
     ]);
@@ -715,7 +1375,7 @@ function dayRow(row, auto) {
     : row.day.blocks[0].exercises.slice(0, 2).map((ex) => ex.name).join(" · ");
   const session = row.day.session ? row.day.session + " · " : "";
   return el("button", {
-    class: "day",
+    class: "day" + (isToday ? " today" : ""),
     type: "button",
     onclick: () => {
       state.focusKey = row.day.key;
@@ -771,11 +1431,13 @@ function viewSemana() {
   const override = validPlan(state.overrides[state.category]);
   const when = override ? shortDate(state.plan.importedAt) : "";
   const nodes = [
-    el("p", { class: "kicker" }, [state.plan.week ? "Semana " + state.plan.week : "Plan", state.plan.period].filter(Boolean).join(" · ")),
-    el("h1", {}, categoryLabel()),
-    el("p", { class: "fine" }, "Cada fila es un día de la planilla."),
+    el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, [state.plan.week ? "Semana " + state.plan.week : "Plan", state.plan.period].filter(Boolean).join(" · ")),
+      el("h1", {}, categoryLabel()),
+      el("p", { class: "fine" }, "Tocá un día para abrir la sesión."),
+    ]),
   ];
-  for (const row of agenda(state.plan)) nodes.push(dayRow(row, auto));
+  nodes.push(el("div", { class: "week" }, agenda(state.plan).map((row) => dayRow(row, auto))));
   if (state.plan.warnings && state.plan.warnings.length) {
     nodes.push(el("p", { class: "fine" }, state.plan.warnings.join(" ")));
   }
@@ -791,68 +1453,6 @@ function viewSemana() {
     }, validPlan(state.builtins[state.category]) ? "Volver a la planilla del club" : "Borrar rutina"));
   }
   nodes.push(el("footer", { class: "plan-foot" }, foot));
-  return nodes;
-}
-
-function formatCoach(text) {
-  const frag = document.createDocumentFragment();
-  for (const block of String(text || "").split(/\n{2,}/)) {
-    if (!block.trim()) continue;
-    const p = document.createElement("p");
-    block.split("\n").forEach((line, index) => {
-      if (index) p.append(document.createElement("br"));
-      const pattern = /\*\*(.+?)\*\*/g;
-      let last = 0;
-      let match;
-      while ((match = pattern.exec(line))) {
-        p.append(line.slice(last, match.index));
-        const strong = document.createElement("strong");
-        strong.textContent = match[1];
-        p.append(strong);
-        last = match.index + match[0].length;
-      }
-      p.append(line.slice(last));
-    });
-    frag.append(p);
-  }
-  if (!frag.childNodes.length) frag.append(document.createElement("p"));
-  return frag;
-}
-
-function viewCoach() {
-  const nodes = [
-    el("p", { class: "kicker" }, state.ai ? "Grok" : "Sin conectar"),
-    el("h1", {}, "Coach"),
-  ];
-  if (!state.ai) {
-    nodes.push(el("section", { class: "setup" }, [
-      el("h2", {}, "El coach corre en la compu"),
-      el("p", {}, "La rutina y las series funcionan igual. Para preguntar, creá una clave en console.x.ai, copiá .env.example a .env dentro de la carpeta gym y pegá XAI_API_KEY. Reiniciá la app."),
-      el("a", { class: "text-btn", href: "https://console.x.ai", target: "_blank", rel: "noopener noreferrer" }, "Abrir console.x.ai"),
-    ]));
-  }
-  const thread = messages();
-  if (!thread.length && !state.coachBusy) {
-    nodes.push(el("p", { class: "lead" }, state.plan ? "Sabe la planilla de " + categoryLabel() + " y las series que marcaste hoy." : "Cuando " + categoryLabel() + " tenga planilla, la tiene en cuenta."));
-  }
-  for (const message of thread) {
-    const kind = message.role === "user" ? "user" : message.role === "note" ? "note" : "coach";
-    nodes.push(el("div", { class: "msg " + kind }, formatCoach(message.content)));
-  }
-  if (state.coachBusy) {
-    nodes.push(el("div", { class: "msg coach", id: "coach-stream" }, el("p", { class: "fine" }, "Pensando…")));
-  }
-  if (thread.length && !state.coachBusy) {
-    nodes.push(el("button", {
-      class: "text-btn",
-      type: "button",
-      onclick: () => {
-        state.chat[state.category] = [];
-        save(KEYS.chat, state.chat);
-        render();
-      },
-    }, "Borrar conversación"));
-  }
   return nodes;
 }
 
@@ -1100,8 +1700,10 @@ function viewAvisos() {
       ])))
     : el("p", { class: "fine", style: "margin-top:8px" }, "Cuando haya un aviso, queda anotado acá.");
   return [
-    el("p", { class: "kicker" }, "Sala"),
-    el("h1", {}, "Avisos"),
+    el("header", { class: "hero" }, [
+      el("p", { class: "kicker" }, "Sala"),
+      el("h1", {}, "Avisos"),
+    ]),
     status,
     el("section", { class: "notify-card" }, [
       el("h2", {}, "Recordatorio de sala"),
@@ -1173,15 +1775,68 @@ function viewAvisos() {
 function view() {
   if (state.tab === "semana") return viewSemana();
   if (state.tab === "avisos") return viewAvisos();
-  if (state.tab === "coach") return viewCoach();
+  if (state.tab === "cuenta") return viewCuenta();
   return viewHoy();
+}
+
+function syncTabBlob(morph) {
+  const blob = document.getElementById("tab-blob");
+  const shell = document.getElementById("tabs-shell");
+  const on = shell && shell.querySelector('.tab[aria-selected="true"]');
+  if (!blob || !shell) return;
+  if (!on) {
+    blob.style.opacity = "0";
+    return;
+  }
+  blob.style.opacity = "";
+  const nav = shell.getBoundingClientRect();
+  const r = on.getBoundingClientRect();
+  const left = r.left - nav.left;
+  const width = r.width;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (morph && !reduce) {
+    const prevLeft = Number.parseFloat(blob.style.left) || left;
+    const prevWidth = Number.parseFloat(blob.style.width) || width;
+    const minL = Math.min(prevLeft, left);
+    const maxR = Math.max(prevLeft + prevWidth, left + width);
+    blob.style.transition = "none";
+    blob.style.left = minL + "px";
+    blob.style.width = Math.max(8, maxR - minL) + "px";
+    void blob.offsetWidth;
+    blob.style.transition = "";
+  }
+  blob.style.left = left + "px";
+  blob.style.width = width + "px";
+}
+
+function setGlassLight(x, y) {
+  const px = Math.max(6, Math.min(94, x * 100));
+  const py = Math.max(0, Math.min(48, y * 42));
+  app.style.setProperty("--gx", px + "%");
+  app.style.setProperty("--gy", py + "%");
+  const ambient = app.querySelector(".ambient");
+  if (ambient) ambient.style.transform = "translate(" + ((x - 0.5) * 14).toFixed(1) + "px," + ((y - 0.5) * 10).toFixed(1) + "px)";
+}
+
+function tickStatus() {
+  const node = document.getElementById("status-time");
+  if (!node) return;
+  node.textContent = new Date().toLocaleTimeString("es-UY", { hour: "numeric", minute: "2-digit", hour12: false });
 }
 
 function render(options) {
   const keep = options && options.resetScroll ? 0 : main.scrollTop;
+  const tabChanged = app.dataset.screen !== state.tab;
+  app.dataset.screen = state.tab;
+  if (options && options.resetScroll) app.classList.remove("tabs-min");
   main.replaceChildren(...view());
   main.scrollTop = options && options.stick ? main.scrollHeight : keep;
-  for (const button of document.querySelectorAll("[data-tab]")) {
+  if (tabChanged) {
+    main.classList.remove("enter");
+    void main.offsetWidth;
+    main.classList.add("enter");
+  }
+  for (const button of document.querySelectorAll(".tab[data-tab]")) {
     button.setAttribute("aria-selected", button.dataset.tab === state.tab ? "true" : "false");
   }
   for (const button of document.querySelectorAll("[data-cat]")) {
@@ -1189,16 +1844,8 @@ function render(options) {
     button.setAttribute("aria-selected", on ? "true" : "false");
     if (on && options && options.centerCat) button.scrollIntoView({ inline: "center", block: "nearest" });
   }
-  composer.hidden = state.tab !== "coach";
-  coachSend.disabled = Boolean(state.coachBusy);
   importBtn.setAttribute("aria-busy", state.importing ? "true" : "false");
-  chips.replaceChildren();
-  const showChips = state.tab === "coach" && !state.coachBusy && !messages().some((message) => message.role === "user");
-  if (showChips) {
-    for (const text of SUGGESTIONS) {
-      chips.append(el("button", { type: "button", class: "chip", onclick: () => sendCoach(text) }, text));
-    }
-  }
+  syncTabBlob(Boolean(options && options.morphTabs));
 }
 
 function applyPlan(plan) {
@@ -1273,112 +1920,79 @@ async function importFile(file) {
   }
 }
 
-async function sendCoach(text) {
-  const content = String(text || "").trim();
-  if (!content || state.coachBusy) return;
-  const thread = messages();
-  thread.push({ role: "user", content: content.slice(0, 2000) });
-  state.chat[state.category] = thread.slice(-30);
-  state.coachBusy = true;
-  save(KEYS.chat, state.chat);
-  render({ stick: true });
-  let acc = "";
-  let failed = "";
-  try {
-    const response = await fetch("/api/coach", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: messages().filter((message) => message.role === "user" || message.role === "assistant").slice(-12),
-        context: routineContext(),
-      }),
-    });
-    if (!response.ok || !response.body) {
-      const data = response.ok ? {} : await response.json().catch(() => ({}));
-      throw new Error(data.message || "El coach no respondió.");
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        let payload;
-        try {
-          payload = JSON.parse(trimmed.slice(5).trim());
-        } catch {
-          continue;
-        }
-        if (!payload || payload.error) throw new Error((payload && payload.error) || "Se cortó la respuesta.");
-        if (!payload.t) continue;
-        acc += payload.t;
-        const box = document.getElementById("coach-stream");
-        if (box) {
-          box.replaceChildren(formatCoach(acc));
-          const distance = main.scrollHeight - main.scrollTop - main.clientHeight;
-          if (distance < 140) main.scrollTop = main.scrollHeight;
-        }
-      }
-    }
-    if (!acc) throw new Error("El coach no mandó texto.");
-  } catch (error) {
-    failed = humanError(error, "Se cortó la respuesta.");
-  } finally {
-    const thread = messages();
-    if (acc) thread.push({ role: "assistant", content: acc });
-    if (failed) thread.push({ role: "note", content: failed });
-    state.chat[state.category] = thread.slice(-30);
-    state.coachBusy = false;
-    save(KEYS.chat, state.chat);
-    render({ stick: true });
-  }
-}
-
 fileInput.addEventListener("change", () => {
   const file = fileInput.files && fileInput.files[0];
   if (file) importFile(file);
 });
-importBtn.addEventListener("click", () => fileInput.click());
+const accountBtn = document.getElementById("account-btn");
+if (accountBtn) accountBtn.addEventListener("click", openAccount);
 
-for (const button of document.querySelectorAll("[data-tab]")) {
-  button.addEventListener("click", () => {
-    state.tab = button.dataset.tab;
-    render({ resetScroll: true });
+const gateForm = document.getElementById("gate-form");
+const gateLoginTab = document.getElementById("gate-login-tab");
+const gateRegisterTab = document.getElementById("gate-register-tab");
+if (gateLoginTab) gateLoginTab.addEventListener("click", () => { gateError(""); setGateMode(false); });
+if (gateRegisterTab) gateRegisterTab.addEventListener("click", () => { gateError(""); setGateMode(true); });
+if (gateForm) {
+  gateForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const register = document.getElementById("gate-register-tab").getAttribute("aria-selected") === "true";
+    const submit = document.getElementById("gate-submit");
+    const payload = {
+      nombre: document.getElementById("gate-name").value,
+      email: document.getElementById("gate-email").value,
+      password: document.getElementById("gate-password").value,
+    };
+    gateError("");
+    submit.disabled = true;
+    const previous = submit.textContent;
+    submit.textContent = "Un segundo…";
+    try {
+      const path = register ? "/api/auth/register" : "/api/auth/login";
+      const result = await authApi(path, { method: "POST", body: JSON.stringify(payload) });
+      enterAccount(result.user, result.data);
+      document.getElementById("gate-password").value = "";
+      if (app.classList.contains("gated")) toast("Cuenta lista. Ahora armá tu ficha.");
+      else toast(register ? "Cuenta lista. Ya estás adentro." : "Hola " + (result.user.nombre || "") + ".");
+    } catch (error) {
+      gateError(humanError(error, "No pude entrar."));
+    } finally {
+      submit.disabled = false;
+      submit.textContent = previous;
+    }
   });
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") pushCloud();
+});
+window.addEventListener("pagehide", () => { pushCloud(); });
+
+importBtn.addEventListener("click", () => fileInput.click());
+
+for (const button of document.querySelectorAll(".tab[data-tab]")) {
+  button.addEventListener("click", () => {
+    if (state.tab === button.dataset.tab) return;
+    if (button.dataset.tab === "cuenta") {
+      openAccount();
+      return;
+    }
+    state.tab = button.dataset.tab;
+    render({ resetScroll: true, morphTabs: true });
+  });
+}
+
+let lastScroll = 0;
+main.addEventListener("scroll", () => {
+  const y = main.scrollTop;
+  app.classList.toggle("is-scrolled", y > 10);
+  if (y > lastScroll + 8 && y > 56) app.classList.add("tabs-min");
+  else if (y < lastScroll - 8) app.classList.remove("tabs-min");
+  lastScroll = y;
+}, { passive: true });
 
 for (const button of document.querySelectorAll("[data-cat]")) {
   button.addEventListener("click", () => selectCategory(button.dataset.cat));
 }
-
-composer.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const text = coachInput.value;
-  coachInput.value = "";
-  coachInput.style.height = "auto";
-  sendCoach(text);
-});
-
-coachInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    const text = coachInput.value;
-    coachInput.value = "";
-    coachInput.style.height = "auto";
-    sendCoach(text);
-  }
-});
-
-coachInput.addEventListener("input", () => {
-  coachInput.style.height = "auto";
-  coachInput.style.height = Math.min(coachInput.scrollHeight, 120) + "px";
-});
 
 document.getElementById("sheet-close").addEventListener("click", closeSheet);
 document.getElementById("backdrop").addEventListener("click", closeSheet);
@@ -1408,12 +2022,33 @@ phone.addEventListener("drop", (event) => {
   if (file) importFile(file);
 });
 
+window.addEventListener("pointermove", (event) => {
+  if (event.pointerType === "touch") return;
+  setGlassLight(event.clientX / window.innerWidth, event.clientY / window.innerHeight);
+}, { passive: true });
+
+window.addEventListener("deviceorientation", (event) => {
+  if (event.gamma == null) return;
+  const x = 0.5 + Math.max(-1, Math.min(1, event.gamma / 45)) * 0.42;
+  const y = 0.18 + Math.max(-1, Math.min(1, (event.beta || 0) / 90)) * 0.22;
+  setGlassLight(x, y);
+}, { passive: true });
+
+window.addEventListener("resize", () => syncTabBlob(false));
+if (window.ResizeObserver) {
+  new ResizeObserver(() => syncTabBlob(false)).observe(document.getElementById("tabs-shell"));
+}
+
+tickStatus();
+setInterval(tickStatus, 20000);
+
 state.plan = planFor(state.category);
 ensureCycle();
 render();
+requestAnimationFrame(() => syncTabBlob(false));
 
 async function boot() {
-  await Promise.all(Object.entries(BUILTIN_FILES).map(async ([id, url]) => {
+  const builtins = Promise.all(Object.entries(BUILTIN_FILES).map(async ([id, url]) => {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(String(response.status));
@@ -1424,6 +2059,7 @@ async function boot() {
       if (id === "m15") state.loadError = "No pude cargar la planilla de M15.";
     }
   }));
+  await Promise.all([bootAuth(), builtins]);
   state.ready = true;
   if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
   ensureCycle();
@@ -1440,7 +2076,7 @@ fetch("/api/health")
   .then((data) => {
     state.ai = Boolean(data && data.ai);
     state.httpsPort = data && data.httpsPort ? data.httpsPort : 0;
-    if (state.tab === "coach" || state.tab === "avisos") render();
+    if (state.tab === "avisos") render();
   })
   .catch(() => {});
 
