@@ -91,6 +91,47 @@ function safeFile(urlPath) {
   return filePath;
 }
 
+function firstHeader(req, names) {
+  for (const name of names) {
+    const value = req.headers[name];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (Array.isArray(value) && value[0]) return String(value[0]).trim();
+  }
+  return "";
+}
+
+function isAppPath(value) {
+  return typeof value === "string" && value.charAt(0) === "/" && !value.startsWith("//");
+}
+
+function isFunctionPath(pathname) {
+  return pathname === "/api" || pathname === "/api/index" || pathname === "/api/index.js";
+}
+
+function requestUrl(req) {
+  const host = "http://" + String(firstHeader(req, ["x-forwarded-host", "host"]) || "localhost").split(",")[0].trim();
+  const incoming = new URL(req.url || "/", host);
+  const routed = incoming.searchParams.get("route");
+  if (isAppPath(routed) && !isFunctionPath(new URL(routed, host).pathname)) {
+    const params = new URLSearchParams(incoming.search);
+    params.delete("route");
+    const query = params.toString();
+    return new URL(routed.split("?")[0] + (query ? "?" + query : ""), host);
+  }
+  if (isFunctionPath(incoming.pathname.replace(/\/+$/, "") || "/")) {
+    const forwarded = firstHeader(req, ["x-forwarded-uri", "x-original-uri", "x-vercel-original-path"]);
+    if (isAppPath(forwarded)) {
+      const original = new URL(forwarded, host);
+      if (!isFunctionPath(original.pathname.replace(/\/+$/, "") || "/")) return original;
+    }
+    const slug = incoming.searchParams.get("path") || incoming.searchParams.get("path[]");
+    if (slug && !String(slug).includes("..")) {
+      return new URL("/api/" + String(slug).replace(/^\/+/, ""), host);
+    }
+  }
+  return incoming;
+}
+
 function filenameFrom(req) {
   const raw = req.headers["x-filename"];
   if (!raw) return "rutina.xlsx";
@@ -387,7 +428,7 @@ function serveStatic(res, urlPath) {
 let securePort = 0;
 
 function handleRequest(req, res) {
-  const url = new URL(req.url || "/", "http://localhost");
+  const url = requestUrl(req);
   return Promise.resolve()
     .then(async () => {
       if (req.method === "GET" && url.pathname === "/api/health") {

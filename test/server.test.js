@@ -84,6 +84,26 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
       assert.equal(coach.status, 503);
       assert.match(coach.json.message, /XAI_API_KEY/);
     }
+
+    const rewrittenHealth = await request(server, { path: "/api?route=/api/health" });
+    assert.equal(rewrittenHealth.status, 200);
+    assert.equal(rewrittenHealth.json.ok, true);
+
+    const rewrittenLogin = await request(server, {
+      method: "POST",
+      path: "/api?route=/api/auth/login",
+      body: Buffer.from(JSON.stringify({ email: "lu@cpc.uy", password: "clave123" })),
+      headers: { "Content-Type": "application/json" },
+    });
+    assert.equal(rewrittenLogin.status, 401);
+    assert.match(rewrittenLogin.json.message, /Mail o clave/);
+
+    const forwardedHealth = await request(server, {
+      path: "/api/index.js",
+      headers: { "x-forwarded-uri": "/api/health" },
+    });
+    assert.equal(forwardedHealth.status, 200);
+    assert.equal(forwardedHealth.json.ok, true);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -1,9 +1,13 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index.js" }
+    { "source": "/api/(.*)", "destination": "/api?route=/api/$1" }
   ],
   "functions": {
     "api/index.js": {
+      "includeFiles": "{public,lib}/**",
+      "maxDuration": 15
+    },
+    "api/[...path].js": {
       "includeFiles": "{public,lib}/**",
       "maxDuration": 15
     }
