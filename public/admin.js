@@ -143,7 +143,17 @@ async function flush() {
   }).then((data) => {
     const same = state.categoryId === id;
     applyPayload(data);
-    if (same && !state.dirty) state.categoryId = id;
+    if (same && !state.dirty) {
+      state.categoryId = id;
+      const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+      if (!typing) {
+        state.plan = editablePlan(state.categoryId);
+        render();
+      } else {
+        const banner = document.querySelector(".panel .banner");
+        if (banner) banner.textContent = "Esta planilla es la que ven los teléfonos.";
+      }
+    }
     setStatus("Guardado", true);
   }).catch((error) => {
     state.dirty = true;
@@ -256,30 +266,9 @@ function categoryButtons() {
 }
 
 function sidebar() {
-  const name = el("input", { placeholder: "Nueva categoría", maxlength: "24", "aria-label": "Nombre de la categoría" });
   return el("aside", { class: "side" }, [
     el("p", { class: "kicker" }, "Categorías"),
     el("div", { class: "cat-list" }, categoryButtons()),
-    el("div", { class: "row" }, [
-      name,
-      el("button", {
-        type: "button",
-        class: "btn",
-        onclick: () => {
-          const label = name.value;
-          run(() => api("/api/admin/categories", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ label }),
-          })).then(() => {
-            const created = state.categories.find((item) => item.label.toLowerCase() === label.trim().toLowerCase());
-            if (created) state.categoryId = created.id;
-            state.plan = editablePlan(state.categoryId);
-            render();
-          });
-        },
-      }, "Agregar"),
-    ]),
   ]);
 }
 
@@ -483,9 +472,7 @@ function planPanel() {
         el("h2", {}, cat ? cat.label : "Categoría"),
       ]),
       el("div", { class: "row" }, [
-        el("button", { type: "button", class: "text", onclick: () => moveCurrent(-1) }, "Subir"),
-        el("button", { type: "button", class: "text", onclick: () => moveCurrent(1) }, "Bajar"),
-        el("button", { type: "button", class: "danger", onclick: removeCurrent }, "Sacar categoría"),
+        el("span", { class: "meta" }, exerciseTotal(state.plan) + " ejercicios"),
       ]),
     ]),
     state.error ? el("p", { class: "error" }, state.error) : null,
@@ -658,20 +645,6 @@ function renameCurrent() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: state.categoryId, label }),
   }));
-}
-
-function moveCurrent(dir) {
-  run(() => api("/api/admin/categories/move", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: state.categoryId, dir }),
-  }));
-}
-
-function removeCurrent() {
-  const cat = state.categories.find((item) => item.id === state.categoryId);
-  if (!window.confirm("¿Sacar " + (cat ? cat.label : "esta categoría") + "?")) return;
-  run(() => api("/api/admin/categories?id=" + encodeURIComponent(state.categoryId), { method: "DELETE" }));
 }
 
 function clearCurrent() {

@@ -19,13 +19,8 @@ const DAY_PICKS = [
   [0, "D"],
 ];
 const CATEGORIES = [
-  { id: "m13", label: "M13" },
   { id: "m15", label: "M15" },
   { id: "m17", label: "M17" },
-  { id: "m19", label: "M19" },
-  { id: "pre-inter", label: "PRE-INTER" },
-  { id: "inter", label: "INTER" },
-  { id: "primera", label: "PRIMERA" },
 ];
 const BUILTIN_FILES = { m15: "/routines/m15.json", m17: "/routines/m17.json" };
 const WEEK = [
@@ -83,8 +78,11 @@ const openingTab = new URLSearchParams(location.search).get("tab");
 const state = {
   tab: openingTab === "semana" || openingTab === "avisos" || openingTab === "cuenta" ? openingTab : "hoy",
   category: CATEGORIES.some((item) => item.id === storedCategory) ? storedCategory : "m15",
+  categories: CATEGORIES.map((item) => ({ id: item.id, label: item.label })),
   overrides: objectBag(storedOverrides),
   builtins: {},
+  clubPlans: {},
+  hiddenCats: [],
   plan: null,
   log: objectBag(storedLog),
   cycle: objectBag(load(KEYS.cycle)),
@@ -527,14 +525,25 @@ function validPlan(plan) {
   return Boolean(plan && plan.version === 1 && Array.isArray(plan.days));
 }
 
+function categoryList() {
+  return state.categories && state.categories.length ? state.categories : CATEGORIES;
+}
+
+function categoryById(id) {
+  return categoryList().find((item) => item.id === id);
+}
+
 function categoryLabel() {
-  const found = CATEGORIES.find((item) => item.id === state.category);
+  const found = categoryById(state.category);
   return found ? found.label : "Categoría";
 }
 
 function planFor(id) {
   const override = state.overrides[id];
   if (validPlan(override)) return override;
+  if (state.hiddenCats.includes(id)) return null;
+  const clubPlan = state.clubPlans[id];
+  if (validPlan(clubPlan)) return clubPlan;
   const builtin = state.builtins[id];
   if (validPlan(builtin)) return builtin;
   return null;
@@ -1045,7 +1054,7 @@ function shiftCycle(by) {
 }
 
 function selectCategory(id) {
-  if (!CATEGORIES.some((item) => item.id === id) || id === state.category) return;
+  if (!categoryList().some((item) => item.id === id) || id === state.category) return;
   state.category = id;
   state.focusKey = null;
   state.plan = planFor(id);
@@ -1248,7 +1257,7 @@ function sessionsOf(plan) {
 
 function notifyPayload() {
   const prefs = state.notify;
-  const found = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  const found = categoryById(prefs.categoryId);
   let timezone = "America/Montevideo";
   try {
     timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
@@ -1395,7 +1404,7 @@ function checkLocalReminder() {
   if (prefs.lastLocal === todayKey()) return;
   state.notify.lastLocal = todayKey();
   save(KEYS.notify, state.notify);
-  const label = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  const label = categoryById(prefs.categoryId);
   const session = sessionsOf(planFor(prefs.categoryId)).find((item) => item.weekday === now.getDay());
   const head = [label && label.label, session && session.label, session && session.session].filter(Boolean).join(" · ");
   const body = head
@@ -1415,7 +1424,7 @@ function watchPlanStamp() {
     if (!stamp) continue;
     const storageKey = id === "m15" ? KEYS.stamp : "cpc.stamp." + id;
     const previous = load(storageKey);
-    const found = CATEGORIES.find((item) => item.id === id);
+    const found = categoryById(id);
     if (previous && previous !== stamp) {
       announceRoutine("Se actualizó la planilla de " + (found ? found.label : id) + (plan.week ? ", semana " + plan.week : "") + ".");
     }
@@ -1473,7 +1482,7 @@ function viewAvisos() {
     style: "margin-top:12px",
     onclick: () => { granted ? testNotice() : enableNotifications(); },
   }, granted ? "Probar aviso" : "Activar notificaciones"));
-  const categoryName = CATEGORIES.find((item) => item.id === prefs.categoryId);
+  const categoryName = categoryById(prefs.categoryId);
   const history = state.notices.length
     ? el("div", { class: "notice-list" }, state.notices.map((item) => el("div", { class: "notice-item" }, [
         el("strong", {}, item.title),
@@ -1535,7 +1544,7 @@ function viewAvisos() {
     el("section", { class: "notify-card" }, [
       el("h2", {}, "Categoría del aviso"),
       el("p", {}, "El recordatorio usa la planilla de " + (categoryName ? categoryName.label : "M15") + "."),
-      el("div", { class: "day-picks" }, CATEGORIES.map((item) => el("button", {
+      el("div", { class: "day-picks" }, categoryList().map((item) => el("button", {
         type: "button",
         class: "day-pick wide",
         "aria-pressed": prefs.categoryId === item.id ? "true" : "false",
@@ -1605,6 +1614,80 @@ function tickStatus() {
   node.textContent = new Date().toLocaleTimeString("es-UY", { hour: "numeric", minute: "2-digit", hour12: false });
 }
 
+let categoryNavKey = "";
+
+function syncCategoryNav(options) {
+  const nav = document.getElementById("cats");
+  if (!nav) return;
+  const key = categoryList().map((item) => item.id + "=" + item.label).join("|");
+  if (key !== categoryNavKey) {
+    categoryNavKey = key;
+    nav.replaceChildren(...categoryList().map((item) => {
+      const button = el("button", {
+        type: "button",
+        class: "cat",
+        "data-cat": item.id,
+      }, item.label);
+      button.addEventListener("click", () => selectCategory(item.id));
+      return button;
+    }));
+  }
+  for (const button of nav.querySelectorAll("[data-cat]")) {
+    const on = button.dataset.cat === state.category;
+    button.setAttribute("aria-selected", on ? "true" : "false");
+    if (on && options && options.centerCat) button.scrollIntoView({ inline: "center", block: "nearest" });
+  }
+}
+
+function applyClub(data) {
+  const categories = Array.isArray(data && data.categories)
+    ? data.categories.filter((item) => item && item.id && item.label)
+    : [];
+  if (categories.length) {
+    state.categories = categories.map((item) => ({ id: String(item.id), label: String(item.label) }));
+  }
+  state.clubPlans = objectBag(data && data.plans);
+  state.hiddenCats = Array.isArray(data && data.hidden) ? data.hidden.map(String) : [];
+  if (!categoryList().some((item) => item.id === state.category)) {
+    state.category = categoryList()[0].id;
+    save(KEYS.category, state.category);
+    state.focusKey = null;
+  }
+  if (!categoryList().some((item) => item.id === state.notify.categoryId)) {
+    state.notify.categoryId = categoryList()[0].id;
+  }
+}
+
+let clubSeen = "";
+
+function clubSignature() {
+  return categoryList().map((item) => item.id + "=" + item.label).join("|")
+    + "#" + state.hiddenCats.join(",")
+    + "#" + planStamp(state.clubPlans.m15)
+    + "#" + planStamp(state.clubPlans.m17);
+}
+
+async function refreshClub(announce) {
+  let data;
+  try {
+    const response = await fetch("/api/club", { cache: "no-store" });
+    if (!response.ok) return;
+    data = await response.json();
+  } catch {
+    return;
+  }
+  const visibleBefore = planStamp(state.plan);
+  applyClub(data);
+  if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
+  const visibleAfter = planStamp(state.plan);
+  const signature = clubSignature();
+  if (signature !== clubSeen) render();
+  if (announce && clubSeen && visibleAfter !== visibleBefore) {
+    announceRoutine("Se actualizó la planilla de " + categoryLabel() + ".");
+  }
+  clubSeen = signature;
+}
+
 function render(options) {
   const keep = options && options.resetScroll ? 0 : main.scrollTop;
   const tabChanged = app.dataset.screen !== state.tab;
@@ -1620,11 +1703,7 @@ function render(options) {
   for (const button of document.querySelectorAll(".tab[data-tab]")) {
     button.setAttribute("aria-selected", button.dataset.tab === state.tab ? "true" : "false");
   }
-  for (const button of document.querySelectorAll("[data-cat]")) {
-    const on = button.dataset.cat === state.category;
-    button.setAttribute("aria-selected", on ? "true" : "false");
-    if (on && options && options.centerCat) button.scrollIntoView({ inline: "center", block: "nearest" });
-  }
+  syncCategoryNav(options);
   importBtn.setAttribute("aria-busy", state.importing ? "true" : "false");
   syncTabBlob(Boolean(options && options.morphTabs));
 }
@@ -1797,11 +1876,12 @@ async function boot() {
       if (!validPlan(plan)) throw new Error("incompleta");
       state.builtins[id] = plan;
     } catch {
-      const found = CATEGORIES.find((item) => item.id === id);
+      const found = categoryById(id);
       state.loadErrors[id] = "No pude cargar la planilla de " + (found ? found.label : id) + ".";
     }
   }));
   await builtins;
+  await refreshClub(false);
   state.ready = true;
   if (!validPlan(state.overrides[state.category])) state.plan = planFor(state.category);
   ensureCycle();
@@ -1812,6 +1892,14 @@ async function boot() {
 }
 
 boot();
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshClub(true);
+});
+window.addEventListener("focus", () => refreshClub(true));
+setInterval(() => {
+  if (document.visibilityState === "visible") refreshClub(true);
+}, 4000);
 
 fetch("/api/health")
   .then((response) => response.json())

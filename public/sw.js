@@ -1,4 +1,4 @@
-const CACHE = "cpc-ar-v18";
+const CACHE = "cpc-ar-v19";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

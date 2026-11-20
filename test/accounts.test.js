@@ -171,3 +171,75 @@ test("registro, login, Excel y datos viajan con la cuenta", async () => {
     try { fs.unlinkSync(xlsxPath); } catch { /* tmp */ }
   }
 });
+
+test("el admin guarda la planilla y la app pública la ve, solo en M15 y M17", async () => {
+  const club = require("../lib/club");
+  const accounts = require("../lib/accounts");
+  await accounts.updateClubDoc(() => ({
+    categories: [
+      { id: "m13", label: "M13" },
+      { id: "m15", label: "M15" },
+      { id: "fisico-m15", label: "FISICO M15" },
+      { id: "m17", label: "M17" },
+    ],
+    plans: {},
+    hidden: [],
+  }));
+  const server = await listen();
+  try {
+    const before = await request(server, { path: "/api/club" });
+    assert.equal(before.status, 200);
+    assert.deepEqual(before.json.categories.map((item) => item.id), ["m15", "m17"]);
+
+    const login = await request(server, {
+      method: "POST",
+      path: "/api/admin/login",
+      body: { email: "admin@cpc.uy", password: "admin1234" },
+    });
+    assert.equal(login.status, 200);
+    assert.equal(login.json.user.rol, "admin");
+
+    const saved = await request(server, {
+      method: "PUT",
+      path: "/api/admin/plans",
+      cookie: login.cookie,
+      body: {
+        id: "m17",
+        plan: {
+          version: 1,
+          sourceName: "Post-Temp A (M17)",
+          week: "47-50",
+          days: [{
+            key: "w1:lunes",
+            weekday: 1,
+            label: "Lunes",
+            session: "Día 1",
+            blocks: [{ title: "Parte central", exercises: [{ id: "m17/d1/pecho", name: "Pecho editado", sets: 4, reps: "12" }] }],
+          }],
+        },
+      },
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.plans.m17.days[0].blocks[0].exercises[0].name, "Pecho editado");
+    assert.deepEqual(saved.json.categories.map((item) => item.id), ["m15", "m17"]);
+
+    const after = await request(server, { path: "/api/club" });
+    assert.equal(after.json.plans.m17.days[0].blocks[0].exercises[0].name, "Pecho editado");
+    assert.equal(after.json.plans.m13, undefined);
+    assert.deepEqual(after.json.categories.map((item) => item.label), ["M15", "M17"]);
+
+    const blocked = await request(server, {
+      method: "POST",
+      path: "/api/admin/categories",
+      cookie: login.cookie,
+      body: { label: "FISICO M15" },
+    });
+    assert.equal(blocked.status, 400);
+
+    const view = await club.publicView();
+    assert.deepEqual(view.categories.map((item) => item.id), ["m15", "m17"]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    try { fs.unlinkSync(xlsxPath); } catch { /* tmp */ }
+  }
+});

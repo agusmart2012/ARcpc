@@ -49,7 +49,9 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     const html = page.raw.toString("utf8");
     assert.match(html, /Carrasco Polo Club/);
     assert.match(html, /data-cat="m15"/);
-    assert.match(html, /PRE-INTER/);
+    assert.match(html, /data-cat="m17"/);
+    assert.doesNotMatch(html, /data-cat="m13"/);
+    assert.doesNotMatch(html, /PRE-INTER/);
     assert.match(html, /viewport-fit=cover/);
     assert.match(html, /id="gate-ficha"/);
     assert.doesNotMatch(html, /Crear cuenta/);
