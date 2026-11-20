@@ -10,6 +10,7 @@ const { parseUpload } = require("./lib/parse");
 const { searchVideos } = require("./lib/youtube");
 const pushhub = require("./lib/pushhub");
 const accounts = require("./lib/accounts");
+const club = require("./lib/club");
 
 const ROOT = [path.join(__dirname, "public"), path.join(process.cwd(), "public"), path.join(__dirname, "..", "public")]
   .find((dir) => fs.existsSync(path.join(dir, "index.html"))) || path.join(__dirname, "public");
@@ -390,6 +391,104 @@ async function handleMe(req, res) {
   sendJson(res, 200, { user, data: await accounts.getData(user.id) });
 }
 
+function httpFail(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  throw error;
+}
+
+async function adminPayload(view, extra) {
+  return Object.assign({}, view, { players: await accounts.listUsers() }, extra || {});
+}
+
+async function handleAdmin(req, res, url) {
+  const pathname = url.pathname.replace(/\/+$/, "") || "/";
+  if (req.method === "GET" && pathname === "/api/admin/hint") {
+    const hint = await accounts.ensureAdmin();
+    sendJson(res, 200, { email: hint.email, password: hint.password || "" });
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/login") {
+    accounts.rateLimit(req);
+    await accounts.ensureAdmin();
+    const user = await accounts.login(await readJson(req));
+    if (user.rol !== "admin") httpFail(403, "Esta cuenta no es la del admin.");
+    sendAuth(res, 200, { user }, accounts.sessionCookie(user.id, req));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/logout") {
+    await handleLogout(req, res);
+    return;
+  }
+  if (req.method === "GET" && pathname === "/api/admin/me") {
+    await accounts.ensureAdmin();
+    const user = await accounts.userFromRequest(req);
+    if (user && user.rol !== "admin") {
+      sendJson(res, 403, { error: "forbidden", message: "Esto es solo para el admin." });
+      return;
+    }
+    sendJson(res, 200, { user: user || null });
+    return;
+  }
+
+  await accounts.requireAdmin(req);
+
+  if (req.method === "GET" && pathname === "/api/admin/state") {
+    sendJson(res, 200, await adminPayload(await club.adminView()));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/categories") {
+    const body = await readJson(req);
+    sendJson(res, 200, await adminPayload(await club.addCategory(body.label)));
+    return;
+  }
+  if (req.method === "PATCH" && pathname === "/api/admin/categories") {
+    const body = await readJson(req);
+    sendJson(res, 200, await adminPayload(await club.renameCategory(body.id, body.label)));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/categories/move") {
+    const body = await readJson(req);
+    sendJson(res, 200, await adminPayload(await club.moveCategory(body.id, body.dir)));
+    return;
+  }
+  if (req.method === "DELETE" && pathname === "/api/admin/categories") {
+    sendJson(res, 200, await adminPayload(await club.removeCategory(url.searchParams.get("id"))));
+    return;
+  }
+  if (req.method === "PUT" && pathname === "/api/admin/plans") {
+    const body = await readJson(req);
+    const view = await club.savePlan(body.id, body.plan);
+    sendJson(res, 200, await adminPayload(view, { plan: view.plans[String(body.id || "")] || null }));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/plans/clear") {
+    const body = await readJson(req);
+    sendJson(res, 200, await adminPayload(await club.clearPlan(body.id)));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/plans/restore") {
+    const body = await readJson(req);
+    sendJson(res, 200, await adminPayload(await club.restorePlan(body.id)));
+    return;
+  }
+  if (req.method === "POST" && pathname === "/api/admin/import") {
+    const buffer = await readBody(req, MAX_IMPORT);
+    if (!buffer.length) httpFail(400, "El archivo está vacío.");
+    const parsed = await parseUpload(buffer, filenameFrom(req));
+    const id = url.searchParams.get("category");
+    const view = await club.savePlan(id, parsed);
+    sendJson(res, 200, await adminPayload(view, { plan: view.plans[String(id || "")] || null }));
+    return;
+  }
+  if (req.method === "DELETE" && pathname === "/api/admin/players") {
+    await accounts.removeUser(url.searchParams.get("id"));
+    sendJson(res, 200, await adminPayload(await club.adminView()));
+    return;
+  }
+  sendJson(res, 404, { error: "not_found", message: "No está." });
+}
+
 async function handleAuthData(req, res) {
   const user = await accounts.requireUser(req);
   if (req.method === "GET") {
@@ -441,6 +540,18 @@ function handleRequest(req, res) {
   const url = requestUrl(req);
   return Promise.resolve()
     .then(async () => {
+      if (req.method === "GET" && (url.pathname === "/admin" || url.pathname === "/admin/")) {
+        serveStatic(res, "/admin.html");
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/api/club") {
+        sendJson(res, 200, await club.publicView());
+        return;
+      }
+      if (url.pathname === "/api/admin" || url.pathname.startsWith("/api/admin/")) {
+        await handleAdmin(req, res, url);
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/api/health") {
         sendJson(res, 200, {
           ok: true,
@@ -579,6 +690,11 @@ function listen(port = Number(process.env.PORT) || 4173) {
     }
     console.log("  Cuentas:        " + (accounts.storageKind() === "blob" ? "Excel en Vercel Blob" : "Excel en data/cuentas.xlsx"));
     console.log("  Coach:          " + (process.env.XAI_API_KEY ? "listo (Grok)" : "falta XAI_API_KEY en .env"));
+    console.log("  Admin:          http://localhost:" + port + "/admin");
+    accounts.ensureAdmin().then((info) => {
+      if (info.preset) console.log("  Entrá con:      " + info.email + "  /  " + info.password);
+      else console.log("  Entrá con:      " + info.email);
+    }).catch((error) => console.error(error));
     console.log("");
   });
   return server;
