@@ -65,6 +65,12 @@ test("importa el ejemplo, sirve la app y el coach explica si falta la clave", as
     assert.equal(routine.json.week, "47-50");
     assert.deepEqual(routine.json.days.map((day) => day.label), ["Lunes", "Martes", "Jueves", "Viernes"]);
 
+    const m17 = await request(server, { path: "/routines/m17.json" });
+    assert.equal(m17.status, 200);
+    assert.equal(m17.json.category, "m17");
+    assert.equal(m17.json.sourceName, "Post-Temp A (M17)");
+    assert.deepEqual(m17.json.days.map((day) => day.label), routine.json.days.map((day) => day.label));
+
     const imported = await request(server, {
       method: "POST",
       path: "/api/import",

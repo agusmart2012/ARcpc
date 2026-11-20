@@ -19,6 +19,16 @@ function findExercise(dayLabel, exerciseName) {
   return exercise;
 }
 
+test("M17 trae la misma planilla Post-Temp A que M15", () => {
+  const m17 = JSON.parse(fs.readFileSync(path.join(__dirname, "../public/routines/m17.json"), "utf8"));
+  assert.equal(m17.category, "m17");
+  assert.equal(m17.sourceName, "Post-Temp A (M17)");
+  const asM15 = JSON.parse(JSON.stringify(m17).replaceAll("m17/", "m15/"));
+  asM15.category = "m15";
+  asM15.sourceName = "Post-Temp A (M15)";
+  assert.deepEqual(asM15, plan);
+});
+
 test("M15 trae los cuatro días de Post-Temp A: lunes, martes, jueves y viernes", () => {
   assert.equal(plan.version, 1);
   assert.equal(plan.category, "m15");

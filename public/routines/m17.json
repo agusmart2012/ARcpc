@@ -1,0 +1,570 @@
+{
+  "version": 1,
+  "sourceName": "Post-Temp A (M17)",
+  "category": "m17",
+  "week": "47-50",
+  "period": "Postemporada A",
+  "tempo": "Tempo controlado: 2-3 segundos en la fase excéntrica y explosivo en la concéntrica.",
+  "notice": "Prestá atención a Observaciones: además de los videos, ahí está cómo se hace cada ejercicio. Respetá las cargas y los porcentajes de la planilla para una correcta adaptación a los próximos periodos.",
+  "tips": [
+    {
+      "label": "Progresión",
+      "text": "Cargas controladas junto, incremento gradual al estímulo. A cargo del PF de sala."
+    },
+    {
+      "label": "Alimentación",
+      "text": "Consumí suficiente proteína (2 g/kg de peso corporal) y calorías para favorecer la hipertrofia."
+    },
+    {
+      "label": "Descanso",
+      "text": "Dormí al menos 7-8 horas por noche para una adecuada recuperación."
+    },
+    {
+      "label": "Movilidad",
+      "text": "Dedicá tiempo a estiramientos dinámicos y al trabajo de movilidad para prevenir lesiones."
+    }
+  ],
+  "reference": [
+    { "rpe": "10", "feel": "Esfuerzo máximo. Peso muy elevado", "rir": "0", "rm": "90-98%" },
+    { "rpe": "9.5", "feel": "Sin repeticiones en la recámara, pero no al máximo. Peso elevado", "rir": "0-1", "rm": "80-88%" },
+    { "rpe": "9", "feel": "Peso medio elevado", "rir": "1", "rm": "80-88%" },
+    { "rpe": "8.5", "feel": "Peso medio", "rir": "1-2", "rm": "70-78%" },
+    { "rpe": "8", "feel": "Peso medio bajo", "rir": "2", "rm": "70-78%" },
+    { "rpe": "7.5", "feel": "Peso bajo a medio", "rir": "2-3", "rm": "60-68%" },
+    { "rpe": "7", "feel": "Peso bajo", "rir": "3", "rm": "60-68%" },
+    { "rpe": "6", "feel": "Esfuerzo suave. Peso muy bajo", "rir": "4", "rm": "50-58%" },
+    { "rpe": "5", "feel": "Sin casi esfuerzo. Peso muy muy bajo", "rir": "5", "rm": "50-58%" }
+  ],
+  "ranges": [
+    { "label": "de 3 a 6 repeticiones", "load": "Peso elevado" },
+    { "label": "de 6 a 10 repeticiones", "load": "Peso medio elevado" },
+    { "label": "de 10 a 15 repeticiones", "load": "Peso medio" },
+    { "label": "más de 15 repeticiones", "load": "Peso bajo" }
+  ],
+  "days": [
+    {
+      "key": "w1:lunes",
+      "weekday": 1,
+      "label": "Lunes",
+      "session": "Día 1",
+      "blocks": [
+        {
+          "title": "",
+          "exercises": [
+            { "id": "m17/d1/foam", "name": "Foam Roller", "check": true }
+          ]
+        },
+        {
+          "title": "Elongación dinámica",
+          "note": "La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
+          "exercises": [
+            {
+              "id": "m17/d1/kneeling",
+              "name": "Kneeling Glute Stretch",
+              "reps": "2×10\"",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/543301049" }]
+            },
+            {
+              "id": "m17/d1/adductor",
+              "name": "Adductor Stretch",
+              "reps": "3×10\"",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/502378687" }]
+            },
+            {
+              "id": "m17/d1/downward",
+              "name": "Downward Dog",
+              "reps": "5",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/518810757" }]
+            },
+            {
+              "id": "m17/d1/scorpion",
+              "name": "Scorpion",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://www.youtube.com/shorts/_1Wxep53hG0" }]
+            }
+          ]
+        },
+        {
+          "title": "Zona media",
+          "exercises": [
+            {
+              "id": "m17/d1/good-morning",
+              "name": "Good Moning c/barra",
+              "sets": 2,
+              "reps": "10",
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m17/d1/plancha-fwd",
+              "name": "Plancha c/disco · Forwards",
+              "sets": 1,
+              "reps": "90\" - 120\""
+            },
+            {
+              "id": "m17/d1/plancha-back",
+              "name": "Plancha c/disco · Backs",
+              "sets": 2,
+              "reps": "60\"",
+              "rest": "Pausa 60\""
+            }
+          ]
+        },
+        {
+          "title": "Parte central",
+          "exercises": [
+            {
+              "id": "m17/d1/pecho-plano",
+              "name": "Pecho Plano c/barra",
+              "sets": 4,
+              "reps": "12",
+              "intensity": "65%",
+              "rest": "Pausa 90\"",
+              "notes": "Pausa de 2\" en el pecho en cada reps."
+            },
+            {
+              "id": "m17/d1/press-inclinado",
+              "name": "Press de Pecho Inclinado c/DB",
+              "sets": 4,
+              "reps": "12",
+              "rest": "Pausa 90\"",
+              "notes": "Tempo: descenso en 3\", empuje en 1\"."
+            },
+            {
+              "id": "m17/d1/aperturas",
+              "name": "Aperturas en Peck Deck",
+              "sets": 3,
+              "reps": "12",
+              "rest": "Pausa 90\"",
+              "notes": "Tempo: descenso en 3\", empuje en 1\"."
+            },
+            {
+              "id": "m17/d1/press-unilateral",
+              "name": "Press Pecho Plano Unilateral c/DB + Flexiones de rechazo",
+              "sets": 4,
+              "reps": "12 + AMRAP",
+              "rest": "Pausa 90\"",
+              "notes": "Mientras 1 brazo mantiene contraído el pecho, el otro realiza las reps."
+            },
+            {
+              "id": "m17/d1/triceps",
+              "name": "Press Fracnes + Jalones Unilarerales en Polea alta + Fondos en Triceps",
+              "sets": 3,
+              "reps": "12 + 10 c/l + AMRAP",
+              "rest": "Pausa 90\""
+            }
+          ]
+        },
+        {
+          "title": "Parte final",
+          "exercises": [
+            {
+              "id": "m17/d1/regen",
+              "name": "Regenerativo",
+              "reps": "10 o 15 min",
+              "notes": "Bicicleta, caminador, etc.",
+              "check": true
+            },
+            { "id": "m17/d1/estiramiento", "name": "Estiramiento", "check": true }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "w2:martes",
+      "weekday": 2,
+      "label": "Martes",
+      "session": "Día 2",
+      "blocks": [
+        {
+          "title": "",
+          "exercises": [
+            { "id": "m17/d2/foam", "name": "Foam Roller", "check": true }
+          ]
+        },
+        {
+          "title": "Elongación dinámica",
+          "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
+          "exercises": [
+            {
+              "id": "m17/d2/prisoner",
+              "name": "Prisoner Good Morning",
+              "reps": "10",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/451668364" }]
+            },
+            {
+              "id": "m17/d2/adductor",
+              "name": "Adductor Stretch",
+              "reps": "2×10",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/502378687" }]
+            },
+            {
+              "id": "m17/d2/hip",
+              "name": "Hip Circles",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/449082043" }]
+            },
+            {
+              "id": "m17/d2/plate",
+              "name": "Plate Wraps",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/449082004" }]
+            }
+          ]
+        },
+        {
+          "title": "Zona media",
+          "exercises": [
+            {
+              "id": "m17/d2/revolver",
+              "name": "Revolver la Olla en FitBall",
+              "sets": 2,
+              "reps": "30\" c/l",
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m17/d2/plancha-2",
+              "name": "Plancha 2 apoyos",
+              "sets": 2,
+              "reps": "30\" c/l"
+            }
+          ]
+        },
+        {
+          "title": "Parte central",
+          "exercises": [
+            {
+              "id": "m17/d2/sentadilla",
+              "name": "Sentadilla Atras c/barra",
+              "sets": 4,
+              "reps": "8",
+              "intensity": "70%",
+              "rest": "Micropausa 90\"",
+              "notes": "Tempo: 3 - 2 - X - 0."
+            },
+            {
+              "id": "m17/d2/rumano",
+              "name": "Peso Muerto Rumano",
+              "sets": 3,
+              "reps": "8 - 10",
+              "intensity": "RIR 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d2/bulgara",
+              "name": "Sentadilla Bulgara",
+              "sets": 3,
+              "reps": "10 c/l",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d2/camilla",
+              "name": "Camilla Femoral Sentado",
+              "sets": 3,
+              "reps": "12",
+              "intensity": "50%",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d2/gemelo",
+              "name": "Extensiones de Gemelo Parado c/DB",
+              "sets": 3,
+              "reps": "12 - 15",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/watch?v=c5Kv6-fnTj8" }]
+            }
+          ]
+        },
+        {
+          "title": "Parte final",
+          "exercises": [
+            {
+              "id": "m17/d2/regen",
+              "name": "Regenerativo",
+              "reps": "10 o 15 min",
+              "notes": "Bicicleta, caminador, etc.",
+              "check": true
+            },
+            { "id": "m17/d2/estiramiento", "name": "Estiramiento", "check": true }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "w4:jueves",
+      "weekday": 4,
+      "label": "Jueves",
+      "session": "Día 3",
+      "blocks": [
+        {
+          "title": "",
+          "exercises": [
+            { "id": "m17/d3/foam", "name": "Foam Roller", "check": true }
+          ]
+        },
+        {
+          "title": "Elongación dinámica",
+          "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
+          "exercises": [
+            {
+              "id": "m17/d3/kneeling",
+              "name": "Kneeling Glute Stretch",
+              "reps": "2×10\"",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/543301049" }]
+            },
+            {
+              "id": "m17/d3/adductor",
+              "name": "Adductor Stretch",
+              "reps": "3×10\"",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/502378687" }]
+            },
+            {
+              "id": "m17/d3/downward",
+              "name": "Downward Dog",
+              "reps": "5",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/518810757" }]
+            }
+          ]
+        },
+        {
+          "title": "Zona media",
+          "exercises": [
+            {
+              "id": "m17/d3/good-morning",
+              "name": "Good Moning c/barra",
+              "sets": 2,
+              "reps": "10",
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m17/d3/plancha-fwd",
+              "name": "Plancha c/disco · Forwards",
+              "sets": 1,
+              "reps": "90\" - 120\""
+            },
+            {
+              "id": "m17/d3/plancha-back",
+              "name": "Plancha c/disco · Backs",
+              "sets": 2,
+              "reps": "60\"",
+              "rest": "Pausa 60\""
+            }
+          ]
+        },
+        {
+          "title": "Parte central",
+          "exercises": [
+            {
+              "id": "m17/d3/dominadas",
+              "name": "Dominadas (toma supina)",
+              "sets": 4,
+              "reps": "8 - 10",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d3/remo",
+              "name": "Remo Tumbado",
+              "sets": 4,
+              "reps": "8",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d3/serrucho",
+              "name": "Serrucho c/DB (apoyo en banco)",
+              "sets": 3,
+              "reps": "10 c/l",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 60\""
+            },
+            {
+              "id": "m17/d3/press-hombro",
+              "name": "Press de Hombro c/DB",
+              "sets": 4,
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 60\""
+            },
+            {
+              "id": "m17/d3/vuelos",
+              "name": "Vuelo Unilateral en banco Inclinado + Vuelo Frontal c/disco (agarre de dedos)",
+              "sets": 3,
+              "reps": "8 - 10 c/l + 12",
+              "intensity": "RIR 2 - 3"
+            },
+            {
+              "id": "m17/d3/curl",
+              "name": "Curl de Biceps c/barra + Martillo c/DB Alternado + ISO c/barra",
+              "sets": 3,
+              "reps": "12 + 8 - 10 c/l + 20\"",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d3/cuello",
+              "name": "Flexiones de Cuello c/arnes + ISO Cuello c/banda",
+              "sets": 3,
+              "reps": "12 + 30\" c/l",
+              "rest": "Micropausa 60\""
+            }
+          ]
+        },
+        {
+          "title": "Parte final",
+          "exercises": [
+            {
+              "id": "m17/d3/regen",
+              "name": "Regenerativo",
+              "reps": "10 o 15 min",
+              "notes": "Bicicleta, caminador, etc.",
+              "check": true
+            },
+            { "id": "m17/d3/estiramiento", "name": "Estiramiento", "check": true }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "w5:viernes",
+      "weekday": 5,
+      "label": "Viernes",
+      "session": "Día 4",
+      "blocks": [
+        {
+          "title": "",
+          "exercises": [
+            { "id": "m17/d4/foam", "name": "Foam Roller", "check": true }
+          ]
+        },
+        {
+          "title": "Elongación dinámica",
+          "note": "Parte inicial, 1 ronda. La movilidad se hace una sola vez, completando las repeticiones de cada ejercicio. Es obligatoria antes de empezar a trabajar en la sala AR.",
+          "exercises": [
+            {
+              "id": "m17/d4/prisoner",
+              "name": "Prisoner Good Morning",
+              "reps": "10",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/451668364" }]
+            },
+            {
+              "id": "m17/d4/adductor",
+              "name": "Adductor Stretch",
+              "reps": "2×10",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/502378687" }]
+            },
+            {
+              "id": "m17/d4/hip",
+              "name": "Hip Circles",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/449082043" }]
+            },
+            {
+              "id": "m17/d4/plate",
+              "name": "Plate Wraps",
+              "reps": "5 c/l",
+              "check": true,
+              "videos": [{ "url": "https://vimeo.com/449082004" }]
+            }
+          ]
+        },
+        {
+          "title": "Zona media",
+          "exercises": [
+            {
+              "id": "m17/d4/revolver",
+              "name": "Revolver la Olla en FitBall",
+              "sets": 2,
+              "reps": "30\" c/l",
+              "rest": "Pausa 30\""
+            },
+            {
+              "id": "m17/d4/plancha-2",
+              "name": "Plancha 2 apoyos",
+              "sets": 2,
+              "reps": "30\" c/l"
+            }
+          ]
+        },
+        {
+          "title": "Parte central",
+          "exercises": [
+            {
+              "id": "m17/d4/hip-thrust",
+              "name": "Hip-Thrust",
+              "sets": 4,
+              "reps": "8 - 10",
+              "intensity": "75%",
+              "rest": "Micropausa 2 min."
+            },
+            {
+              "id": "m17/d4/frontal",
+              "name": "Sentadilla Frontal",
+              "sets": 4,
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 2 min."
+            },
+            {
+              "id": "m17/d4/step-up",
+              "name": "Step Up c/DB",
+              "sets": 3,
+              "reps": "8 - 10",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d4/unilateral",
+              "name": "Peso Muerto Unilateral c/DB",
+              "sets": 3,
+              "reps": "8 c/l",
+              "intensity": "RIR 2 - 3",
+              "rest": "Micropausa 90\""
+            },
+            {
+              "id": "m17/d4/nordico",
+              "name": "Curl Nordico Asitido",
+              "sets": 2,
+              "reps": "4 - 6",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/shorts/o40Zd3WRbxg" }]
+            },
+            {
+              "id": "m17/d4/gemelo",
+              "name": "Extensiones de Gemelo Parado c/DB",
+              "sets": 3,
+              "reps": "12 - 15",
+              "rest": "Micropausa 2 min.",
+              "videos": [{ "url": "https://www.youtube.com/watch?v=c5Kv6-fnTj8" }]
+            }
+          ]
+        },
+        {
+          "title": "Parte final",
+          "exercises": [
+            {
+              "id": "m17/d4/regen",
+              "name": "Regenerativo",
+              "reps": "10 o 15 min",
+              "notes": "Bicicleta, caminador, etc.",
+              "check": true
+            },
+            { "id": "m17/d4/estiramiento", "name": "Estiramiento", "check": true }
+          ]
+        }
+      ]
+    }
+  ]
+}

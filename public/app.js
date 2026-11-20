@@ -27,7 +27,7 @@ const CATEGORIES = [
   { id: "inter", label: "INTER" },
   { id: "primera", label: "PRIMERA" },
 ];
-const BUILTIN_FILES = { m15: "/routines/m15.json" };
+const BUILTIN_FILES = { m15: "/routines/m15.json", m17: "/routines/m17.json" };
 const WEEK = [
   [1, "Lunes"],
   [2, "Martes"],
@@ -97,7 +97,7 @@ const state = {
   ai: false,
   importing: false,
   ready: false,
-  loadError: "",
+  loadErrors: {},
   profile: defaultProfile(load(KEYS.profile)),
 };
 
@@ -960,13 +960,17 @@ function loadingState() {
   ];
 }
 
+function waitingBuiltin() {
+  return !state.ready && Boolean(BUILTIN_FILES[state.category]) && !validPlan(state.overrides[state.category]);
+}
+
 function emptyCategory() {
-  if (state.category === "m15" && state.loadError) {
+  if (BUILTIN_FILES[state.category] && state.loadErrors[state.category]) {
     return [
       el("header", { class: "hero" }, [
         el("p", { class: "kicker" }, "Sala de alto rendimiento"),
-        el("h1", {}, "M15"),
-        el("p", { class: "lead" }, "No llegué a leer la planilla de M15. La compu tiene que estar prendida."),
+        el("h1", {}, categoryLabel()),
+        el("p", { class: "lead" }, "No llegué a leer la planilla de " + categoryLabel() + ". La compu tiene que estar prendida."),
       ]),
       el("button", { class: "btn primary", type: "button", onclick: () => location.reload() }, "Reintentar"),
     ];
@@ -978,7 +982,7 @@ function emptyCategory() {
       el("p", { class: "lead" }, "Esta categoría todavía no tiene planilla. Cuando esté, va a aparecer día por día, igual que M15."),
     ]),
   ];
-  if (state.category !== "m15" && state.builtins.m15) {
+  if (!BUILTIN_FILES[state.category] && state.builtins.m15) {
     nodes.push(el("button", { class: "btn primary", type: "button", onclick: () => selectCategory("m15") }, "Ver M15"));
   }
   nodes.push(el("button", {
@@ -1052,7 +1056,7 @@ function selectCategory(id) {
 
 function viewHoy() {
   if (!state.plan) {
-    if (!state.ready && state.category === "m15" && !state.overrides.m15) return loadingState();
+    if (waitingBuiltin()) return loadingState();
     return emptyCategory();
   }
   const auto = automaticDay(state.plan);
@@ -1195,7 +1199,7 @@ async function deletePlan() {
 
 function viewSemana() {
   if (!state.plan) {
-    if (!state.ready && state.category === "m15" && !state.overrides.m15) return loadingState();
+    if (waitingBuiltin()) return loadingState();
     return emptyCategory();
   }
   const auto = automaticDay(state.plan);
@@ -1406,11 +1410,17 @@ function planStamp(plan) {
 }
 
 function watchPlanStamp() {
-  const stamp = planStamp(state.builtins.m15);
-  if (!stamp) return;
-  const previous = load(KEYS.stamp);
-  if (previous && previous !== stamp) announceRoutine("Se actualizó la planilla de M15" + (state.builtins.m15.week ? ", semana " + state.builtins.m15.week : "") + ".");
-  save(KEYS.stamp, stamp);
+  for (const [id, plan] of Object.entries(state.builtins)) {
+    const stamp = planStamp(plan);
+    if (!stamp) continue;
+    const storageKey = id === "m15" ? KEYS.stamp : "cpc.stamp." + id;
+    const previous = load(storageKey);
+    const found = CATEGORIES.find((item) => item.id === id);
+    if (previous && previous !== stamp) {
+      announceRoutine("Se actualizó la planilla de " + (found ? found.label : id) + (plan.week ? ", semana " + plan.week : "") + ".");
+    }
+    save(storageKey, stamp);
+  }
 }
 
 function switchRow(label, on, onclick) {
@@ -1787,7 +1797,8 @@ async function boot() {
       if (!validPlan(plan)) throw new Error("incompleta");
       state.builtins[id] = plan;
     } catch {
-      if (id === "m15") state.loadError = "No pude cargar la planilla de M15.";
+      const found = CATEGORIES.find((item) => item.id === id);
+      state.loadErrors[id] = "No pude cargar la planilla de " + (found ? found.label : id) + ".";
     }
   }));
   await builtins;
@@ -1796,7 +1807,7 @@ async function boot() {
   ensureCycle();
   watchPlanStamp();
   render();
-  if (state.loadError && state.category === "m15" && !state.plan) toast(state.loadError);
+  if (state.loadErrors[state.category] && !state.plan) toast(state.loadErrors[state.category]);
   publishNotify().catch(() => {});
 }
 

@@ -1,6 +1,6 @@
 # Sala de Alto Rendimiento · Carrasco Polo Club
 
-Rutina de rugby de la sala de alto rendimiento. Hay una pestaña por categoría: M13, M15, M17, M19, PRE-INTER, INTER y PRIMERA. M15 ya trae la planilla Post-Temp A de la semana 47-50, día por día. En el teléfono se marcan las series y se abren los videos de la planilla. El coach responde con Grok, si hay una clave de xAI en esta compu.
+Rutina de rugby de la sala de alto rendimiento. Hay una pestaña por categoría: M13, M15, M17, M19, PRE-INTER, INTER y PRIMERA. M15 y M17 ya traen la planilla Post-Temp A de la semana 47-50, día por día. En el teléfono se marcan las series y se abren los videos de la planilla. El coach responde con Grok, si hay una clave de xAI en esta compu.
 
 ## Arrancar
 
