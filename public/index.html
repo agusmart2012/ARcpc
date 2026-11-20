@@ -55,6 +55,14 @@
             </nav>
           </header>
           <main id="main"></main>
+          <div id="rest-timer" class="rest-timer glass" hidden>
+            <div>
+              <p>Descanso</p>
+              <strong id="rest-clock">0:00</strong>
+              <span id="rest-label"></span>
+            </div>
+            <button type="button" id="rest-dismiss" aria-label="Cerrar cronómetro">Cerrar</button>
+          </div>
           <div class="dock">
             <div class="tabs-shell glass" id="tabs-shell">
               <span class="tab-blob" id="tab-blob" aria-hidden="true"></span>
@@ -96,6 +104,8 @@
     </div>
   </div>
   <input id="file" type="file" accept=".xlsx,.xls,.csv,.txt,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
+  <script src="/haptic.js"></script>
+  <script src="/rest.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

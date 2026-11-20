@@ -8,6 +8,7 @@ const KEYS = {
   notices: "cpc.notices",
   stamp: "cpc.m15stamp",
   profile: "cpc.profile",
+  rest: "cpc.rest",
 };
 const DAY_PICKS = [
   [1, "L"],
@@ -97,6 +98,7 @@ const state = {
   ready: false,
   loadErrors: {},
   profile: defaultProfile(load(KEYS.profile)),
+  restOn: load(KEYS.rest) !== false,
 };
 
 let importLock = false;
@@ -337,6 +339,16 @@ function viewCuenta() {
     ready ? playerCard(state.profile) : el("p", { class: "lead" }, "Falta armar tu ficha."),
     el("div", { class: "sheet-actions" }, [
       el("button", { class: "btn ghost", type: "button", onclick: showFichaGate }, ready ? "Editar ficha" : "Armar ficha"),
+    ]),
+    el("section", { class: "notify-card rest-option" }, [
+      el("h2", {}, "Descanso"),
+      el("p", {}, "Al marcar una serie, cuenta la pausa que dice la planilla."),
+      switchRow("Cronómetro", state.restOn, () => {
+        state.restOn = !state.restOn;
+        save(KEYS.rest, state.restOn);
+        if (!state.restOn) stopRest();
+        render();
+      }),
     ]),
   ];
   return nodes.filter(Boolean);
@@ -845,10 +857,70 @@ function toggleSet(ex, index) {
   const current = entryFor(ex.id);
   const total = ex.sets || 1;
   const sets = Array.from({ length: total }, (_, i) => Boolean(current.sets[i]));
-  sets[index] = !sets[index];
+  const marked = !sets[index];
+  sets[index] = marked;
   logBag()[ex.id] = { sets, weight: current.weight };
   save(KEYS.log, state.log);
+  if (marked && state.restOn) startRest(ex);
   render();
+}
+
+function formatClock(seconds) {
+  const safe = Math.max(0, seconds);
+  return Math.floor(safe / 60) + ":" + String(safe % 60).padStart(2, "0");
+}
+
+let restUntil = 0;
+let restName = "";
+let restTick = 0;
+let restRang = false;
+
+function startRest(ex) {
+  const seconds = typeof restSeconds === "function" ? restSeconds(ex && ex.rest) : 0;
+  if (!seconds) return;
+  restUntil = Date.now() + seconds * 1000;
+  restName = ex.name || "Serie";
+  restRang = false;
+  paintRest();
+  clearInterval(restTick);
+  restTick = setInterval(paintRest, 200);
+}
+
+function stopRest() {
+  restUntil = 0;
+  restName = "";
+  restRang = false;
+  clearInterval(restTick);
+  paintRest();
+}
+
+function paintRest() {
+  const node = document.getElementById("rest-timer");
+  if (!node) return;
+  if (!state.restOn || !restUntil) {
+    node.hidden = true;
+    node.classList.remove("done");
+    app.classList.remove("resting");
+    return;
+  }
+  const left = Math.ceil((restUntil - Date.now()) / 1000);
+  node.hidden = false;
+  app.classList.add("resting");
+  const clock = document.getElementById("rest-clock");
+  const label = document.getElementById("rest-label");
+  if (label) label.textContent = restName;
+  if (left > 0) {
+    node.classList.remove("done");
+    if (clock) clock.textContent = formatClock(left);
+    return;
+  }
+  node.classList.add("done");
+  if (clock) clock.textContent = "0:00";
+  if (label) label.textContent = "Listo · " + restName;
+  if (!restRang) {
+    restRang = true;
+    if (typeof navigator.vibrate === "function") navigator.vibrate([40, 60, 40]);
+  }
 }
 
 function setWeight(ex, value) {
@@ -1570,6 +1642,7 @@ function view() {
 }
 
 function syncTabBlob(morph) {
+  if (tabDrag && tabDrag.moved) return;
   const blob = document.getElementById("tab-blob");
   const shell = document.getElementById("tabs-shell");
   const on = shell && shell.querySelector('.tab[aria-selected="true"]');
@@ -1789,17 +1862,113 @@ if (accountBtn) accountBtn.addEventListener("click", openAccount);
 
 importBtn.addEventListener("click", () => fileInput.click());
 
-for (const button of document.querySelectorAll(".tab[data-tab]")) {
-  button.addEventListener("click", () => {
-    if (state.tab === button.dataset.tab) return;
-    if (button.dataset.tab === "cuenta") {
-      openAccount();
-      return;
-    }
-    state.tab = button.dataset.tab;
-    render({ resetScroll: true, morphTabs: true });
-  });
+function goToTab(id, morph) {
+  if (!id || state.tab === id) {
+    syncTabBlob(false);
+    return;
+  }
+  if (id === "cuenta") {
+    openAccount();
+    if (state.tab !== "cuenta") syncTabBlob(false);
+    return;
+  }
+  state.tab = id;
+  render({ resetScroll: true, morphTabs: Boolean(morph) });
 }
+
+for (const button of document.querySelectorAll(".tab[data-tab]")) {
+  button.addEventListener("click", () => goToTab(button.dataset.tab, true));
+}
+
+const tabShell = document.getElementById("tabs-shell");
+const tabBlob = document.getElementById("tab-blob");
+let tabDrag = null;
+let suppressTabClick = false;
+
+function tabSlots() {
+  return tabShell ? [...tabShell.querySelectorAll(".tab[data-tab]")] : [];
+}
+
+function tabNearest(clientX) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const tab of tabSlots()) {
+    const rect = tab.getBoundingClientRect();
+    const dist = Math.abs(rect.left + rect.width / 2 - clientX);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = tab;
+    }
+  }
+  return best;
+}
+
+function previewTab(id) {
+  for (const tab of tabSlots()) tab.classList.toggle("peek", tab.dataset.tab === id);
+}
+
+function placeBlob(left, width) {
+  tabBlob.style.left = left + "px";
+  tabBlob.style.width = width + "px";
+}
+
+tabShell.addEventListener("pointerdown", (event) => {
+  if (event.button != null && event.button !== 0) return;
+  const shellRect = tabShell.getBoundingClientRect();
+  const scale = shellRect.width / (tabShell.offsetWidth || shellRect.width) || 1;
+  const current = tabShell.querySelector('.tab[aria-selected="true"]') || tabSlots()[0];
+  const currentRect = current ? current.getBoundingClientRect() : shellRect;
+  tabDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    width: currentRect.width / scale,
+    moved: false,
+    scale,
+  };
+});
+
+tabShell.addEventListener("pointermove", (event) => {
+  if (!tabDrag || event.pointerId !== tabDrag.pointerId) return;
+  const dx = event.clientX - tabDrag.startX;
+  if (!tabDrag.moved && Math.abs(dx) < 12) return;
+  if (!tabDrag.moved) {
+    tabDrag.moved = true;
+    tabShell.classList.add("dragging");
+    tabBlob.style.transition = "none";
+    if (tabShell.setPointerCapture) tabShell.setPointerCapture(event.pointerId);
+  }
+  event.preventDefault();
+  const shellRect = tabShell.getBoundingClientRect();
+  const finger = (event.clientX - shellRect.left) / tabDrag.scale;
+  const pad = 4;
+  const max = tabShell.offsetWidth - tabDrag.width - pad;
+  placeBlob(Math.max(pad, Math.min(max, finger - tabDrag.width / 2)), tabDrag.width);
+  const near = tabNearest(event.clientX);
+  if (near) previewTab(near.dataset.tab);
+}, { passive: false });
+
+function endTabDrag(event) {
+  if (!tabDrag || event.pointerId !== tabDrag.pointerId) return;
+  const moved = tabDrag.moved;
+  const near = moved ? tabNearest(event.clientX) : null;
+  tabDrag = null;
+  tabShell.classList.remove("dragging");
+  previewTab("");
+  tabBlob.style.transition = "";
+  if (!moved) return;
+  suppressTabClick = true;
+  if (near) goToTab(near.dataset.tab, false);
+  else syncTabBlob(false);
+}
+
+tabShell.addEventListener("pointerup", endTabDrag);
+tabShell.addEventListener("pointercancel", endTabDrag);
+tabShell.addEventListener("click", (event) => {
+  if (!suppressTabClick) return;
+  suppressTabClick = false;
+  event.preventDefault();
+  event.stopPropagation();
+}, true);
 
 let lastScroll = 0;
 main.addEventListener("scroll", () => {
@@ -1814,6 +1983,7 @@ for (const button of document.querySelectorAll("[data-cat]")) {
   button.addEventListener("click", () => selectCategory(button.dataset.cat));
 }
 
+document.getElementById("rest-dismiss").addEventListener("click", stopRest);
 document.getElementById("sheet-close").addEventListener("click", closeSheet);
 document.getElementById("backdrop").addEventListener("click", closeSheet);
 document.addEventListener("keydown", (event) => {

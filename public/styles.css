@@ -862,6 +862,7 @@ h1 {
   padding: 4px;
   transform-origin: 50% 100%;
   box-shadow: none;
+  touch-action: none;
   transition:
     transform 0.48s var(--spring),
     opacity 0.28s ease,
@@ -893,17 +894,25 @@ h1 {
   pointer-events: none;
   width: 25%;
   border-radius: 28px;
-  background: rgb(255 255 255 / 0.06);
-  box-shadow: none;
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.28);
   transition:
     left 0.52s var(--sheet),
     width 0.52s var(--sheet),
     border-radius 0.4s var(--spring);
 }
 
+.tabs-shell.dragging .tab-blob {
+  transition: none;
+  background: rgb(255 255 255 / 0.28);
+}
+
+.tab.peek { color: var(--text); }
+
 .tab {
   position: relative;
   z-index: 1;
+  touch-action: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1121,10 +1130,63 @@ h1 {
 
 .app.gated .chrome,
 .app.gated main,
-.app.gated .dock {
+.app.gated .dock,
+.app.gated .rest-timer {
   visibility: hidden;
   pointer-events: none;
 }
+
+.rest-timer {
+  position: absolute;
+  right: 16px;
+  bottom: calc(var(--dock-gap) + 78px);
+  left: 16px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 22px;
+}
+
+.rest-timer[hidden] { display: none; }
+
+.app.resting main { padding-bottom: calc(var(--dock-gap) + 168px); }
+
+.rest-timer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rest-timer strong {
+  display: block;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.rest-timer span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rest-timer button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 14px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.rest-timer.done strong { color: var(--accent); }
 
 .gate {
   position: absolute;
@@ -1578,6 +1640,8 @@ h1 {
   box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
 }
 
+.rest-option { margin-top: 16px; }
+
 .notify-card h2 {
   margin: 0 0 8px;
   font-size: 17px;
@@ -1748,7 +1812,7 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .set, .switch i, .tab span, .tabs-shell, .tab-blob, .icon-btn, .cat, .btn, .sheet, .backdrop, .toast, main.enter, .gate-mode, .pick {
+  .set, .switch i, .tab span, .tabs-shell, .tab-blob, .icon-btn, .cat, .btn, .sheet, .backdrop, .toast, main.enter, .gate-mode, .pick, .rest-timer {
     transition: none;
     animation: none;
     transform: none;
